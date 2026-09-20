@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { AlertCircle, Info } from 'lucide-react';
 import { ToastMsg } from '../types';
 
 interface ToastProps {
@@ -6,37 +7,51 @@ interface ToastProps {
   onDismiss: () => void;
 }
 
+const VISIBLE_MS = 3000;
+const FADE_MS = 300;
+
 export function Toast({ toast, onDismiss }: ToastProps) {
   const [visible, setVisible] = useState(false);
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
+  const toastId = toast?.id ?? null;
 
+  // Só reage a um toast novo (id diferente). Antes, qualquer re-render do painel
+  // (ex.: uma mensagem MQTT) reiniciava o temporizador e o aviso nunca desaparecia.
   useEffect(() => {
-    if (!toast) {
+    if (toastId === null) {
       setVisible(false);
       return;
     }
     setVisible(true);
-    const t = setTimeout(() => {
-      setVisible(false);
-      setTimeout(onDismiss, 300);
-    }, 2600);
-    return () => clearTimeout(t);
-  }, [toast, onDismiss]);
+    const hide = setTimeout(() => setVisible(false), VISIBLE_MS);
+    const clear = setTimeout(() => onDismissRef.current(), VISIBLE_MS + FADE_MS);
+    return () => {
+      clearTimeout(hide);
+      clearTimeout(clear);
+    };
+  }, [toastId]);
 
   if (!toast) return null;
 
+  const Icon = toast.kind === 'error' ? AlertCircle : Info;
+
   return (
     <div
-      className={`fixed left-1/2 bottom-6 -translate-x-1/2 px-4 py-2.5 rounded-full text-[0.88rem] max-w-[calc(100%-32px)] text-center z-[60] transition-all duration-250 ${
-        visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
-      } ${
-        toast.kind === 'error'
-          ? 'bg-[#1d2942] border border-[rgba(248,113,113,0.6)]'
-          : 'bg-[#1d2942] border border-[var(--border,#24304b)]'
-      }`}
-      role="status"
-      aria-live="polite"
+      className="toast"
+      data-kind={toast.kind}
+      role={toast.kind === 'error' ? 'alert' : 'status'}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: `translate(-50%, ${visible ? '0' : '16px'})`,
+      }}
     >
-      {toast.message}
+      <Icon
+        className="w-[18px] h-[18px] flex-none"
+        style={{ color: toast.kind === 'error' ? 'var(--err)' : 'var(--soft)' }}
+        aria-hidden="true"
+      />
+      <span>{toast.message}</span>
     </div>
   );
 }

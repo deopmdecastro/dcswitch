@@ -2,15 +2,22 @@
 
 Painel web e simulação Wokwi para controlo de relés com ESP32 via MQTT.
 
-## Painel web (`index.html`)
+## Painel web (React + TypeScript + Tailwind)
 
-- **Interruptores personalizáveis**: toque em ✎ num cartão para alterar o **nome**, o **ícone** e a **cor** (paleta ou cor personalizada), com pré-visualização em tempo real. As alterações ficam guardadas no browser (`localStorage`).
-- **Cada interruptor tem cor e nome distintos** por omissão, e o cartão acende com a cor escolhida quando está ligado.
-- **Ligar todos / Desligar todos** e contador de interruptores ligados.
-- **Estado da ligação claro**: servidor MQTT, dispositivo online/offline e feedback quando o dispositivo não responde.
-- **Definições de ligação** (⚙): servidor MQTT (WebSocket) e prefixo do tópico, sem editar o código. Os parâmetros `?mqtt=` e `?topic=` no endereço continuam a ter prioridade.
-- **Interface tipo aplicação (PWA)**: responsiva, com ícone e `manifest.json`, pode ser instalada no ecrã inicial do telemóvel. Sem dependência de Tailwind/CDN de estilos.
-- Acessibilidade: `aria-pressed`, foco visível e respeito por `prefers-reduced-motion`.
+```bash
+npm install
+npm run dev        # desenvolvimento
+npm run build      # produção (pasta dist/, caminhos relativos: funciona em qualquer subpasta)
+npm run typecheck && npm run lint
+```
+
+- **Interruptores personalizáveis**: toque em ✎ num cartão para alterar o **nome**, o **ícone** e a **cor** (paleta ou cor personalizada), com pré-visualização idêntica ao cartão real. As alterações ficam guardadas no browser (`localStorage`). Por omissão: 💡 verde, 🔌 azul, 🌀 âmbar, ❄️ ciano.
+- **Cartões neon**: cada cartão acende com a sua cor quando está ligado; o estado (ligado/desligado) mostra-se com ponto e texto, e um pulsar indica que o comando está a ser aplicado.
+- **Ligar todos / Desligar todos** e contador de interruptores ligados. O botão em destaque é o que faz sentido no momento; se já estiver tudo no estado pedido, aparece um aviso.
+- **Estado da ligação claro**: servidor MQTT, dispositivo online/offline. Com o dispositivo ou o servidor offline os cartões ficam esbatidos (último estado conhecido) e clicar explica o motivo. Se um comando não obtiver resposta em 4 s, aparece um aviso.
+- **Definições de ligação** (⚙): servidor MQTT (WebSocket) e prefixo do tópico, com validação. Os parâmetros `?mqtt=` e `?topic=` no endereço continuam a ter prioridade.
+- **Interface tipo aplicação (PWA)**: responsiva (moldura de "aparelho" em ecrãs grandes), com ícone e `manifest.json` em `public/`, pode ser instalada no ecrã inicial do telemóvel. Tipo de letra incluído no build (sem CDN).
+- Acessibilidade: cartões com `role="switch"`, diálogos com foco preso e Esc para fechar, foco visível e respeito por `prefers-reduced-motion`.
 
 ## Firmware (`dcswitch/sketch.ino`)
 

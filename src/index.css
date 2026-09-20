@@ -1,18 +1,33 @@
+@import '@fontsource-variable/plus-jakarta-sans/wght.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --bg: #0b1120;
-  --surface: #111a2e;
-  --surface-2: #17223a;
-  --border: #24304b;
-  --text: #e8edf7;
-  --muted: #8b98b3;
-  --ok: #34d399;
-  --warn: #fbbf24;
-  --err: #f87171;
-  --radius: 22px;
+  /* Superfícies */
+  --outside: #0a1326;
+  --bg: #020815;
+  --surface: #061024;
+  --surface-2: #0a1a36;
+  --line: #12306a;
+  --line-soft: #16264a;
+
+  /* Texto */
+  --text: #f5f8ff;
+  --soft: #7fa8f5;
+  --muted: #6b7fa6;
+
+  /* Estados */
+  --ok: #19e68c;
+  --warn: #ffbe1a;
+  --err: #ff6b7a;
+
+  /* Ação principal (azul elétrico) */
+  --primary-1: #0d4fe0;
+  --primary-2: #0a37b8;
+  --primary-line: #2f84ff;
+
   color-scheme: dark;
 }
 
@@ -29,15 +44,23 @@ body {
 body {
   min-height: 100vh;
   min-height: 100dvh;
-  background:
-    radial-gradient(900px 500px at 15% -10%, rgba(56, 189, 248, 0.1), transparent 60%),
-    radial-gradient(800px 500px at 100% 0%, rgba(167, 139, 250, 0.1), transparent 60%),
-    var(--bg);
+  background: var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  font-family: 'Plus Jakarta Sans Variable', system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  word-spacing: 0.08em;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* Safari impede escrever em inputs quando o body tem user-select: none */
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 button {
@@ -46,128 +69,567 @@ button {
   cursor: pointer;
 }
 
-button:focus-visible,
-input:focus-visible {
-  outline: 2px solid #7dd3fc;
-  outline-offset: 2px;
+button:disabled {
+  cursor: not-allowed;
 }
 
-/* Card */
+:focus-visible {
+  outline: 2px solid #8ec5ff;
+  outline-offset: 3px;
+}
+
+/* ───────────── Moldura da aplicação ───────────── */
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 520px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  background:
+    radial-gradient(520px 260px at 0% -4%, rgba(25, 230, 180, 0.09), transparent 70%),
+    radial-gradient(520px 320px at 100% 0%, rgba(31, 120, 255, 0.11), transparent 70%),
+    var(--bg);
+}
+
+/* Em ecrãs maiores o painel aparece como um "aparelho" com moldura, como no desenho. */
+@media (min-width: 560px) {
+  body {
+    background: var(--outside);
+    padding: 20px;
+  }
+
+  .shell {
+    min-height: calc(100dvh - 40px);
+    border: 2px solid var(--line);
+    border-radius: 36px;
+    box-shadow:
+      0 0 0 1px rgba(47, 132, 255, 0.08),
+      0 30px 90px -30px rgba(31, 120, 255, 0.35);
+    overflow: hidden;
+  }
+}
+
+/* ───────────── Cabeçalho ───────────── */
+
+.logo-tile {
+  background: linear-gradient(140deg, #14e8b4, #1aa6ff);
+  box-shadow: 0 8px 26px -8px rgba(25, 230, 200, 0.6);
+}
+
+.icon-btn {
+  background: rgba(6, 16, 36, 0.9);
+  border: 1.5px solid var(--line);
+  transition: background 0.2s, transform 0.12s, border-color 0.2s;
+}
+
+.icon-btn:hover {
+  background: var(--surface-2);
+  border-color: #1d4590;
+}
+
+.icon-btn:active {
+  transform: scale(0.94);
+}
+
+/* Estado da ligação: anel com brilho, como no desenho */
+.status-ring {
+  --s: var(--ok);
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--s);
+  box-shadow: 0 0 10px -1px var(--s);
+  flex: none;
+}
+
+.status-ring[data-tone='warn'] {
+  --s: var(--warn);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.status-ring[data-tone='err'] {
+  --s: var(--err);
+}
+
+/* ───────────── Resumo e ações em bloco ───────────── */
+
+.chip {
+  height: 35px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  word-spacing: 0.1em;
+  white-space: nowrap;
+  color: var(--soft);
+  background: rgba(8, 20, 44, 0.9);
+  border: 1.5px solid #1b3a72;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.25s, transform 0.12s, opacity 0.2s;
+}
+
+.chip:hover:not(:disabled) {
+  background: #0c1f45;
+}
+
+.chip:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.chip[data-primary='true']:not(:disabled) {
+  color: #fff;
+  background: linear-gradient(180deg, var(--primary-1), var(--primary-2));
+  border-color: var(--primary-line);
+  box-shadow:
+    0 0 20px -3px rgba(47, 132, 255, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.chip:disabled {
+  opacity: 0.4;
+}
+
+/* ───────────── Cartão do interruptor ───────────── */
+
 .card {
-  --c: #34d399;
+  --c: #19e68c;
+  position: relative;
+  height: 100%;
 }
 
-.card .card-main {
-  background: var(--surface);
-  border: 1px solid color-mix(in srgb, var(--c) 35%, var(--border));
-  transition: background 0.3s, border-color 0.3s, box-shadow 0.3s, transform 0.12s, opacity 0.2s;
+.card-main {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 158px;
+  padding: 14px 14px 13px;
+  text-align: left;
+  border-radius: 22px;
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--c) 6%, #08122a),
+    #050c1d 75%
+  );
+  border: 2px solid color-mix(in srgb, var(--c) 26%, #14264a);
+  transition:
+    background 0.35s,
+    border-color 0.35s,
+    box-shadow 0.35s,
+    opacity 0.25s,
+    transform 0.12s;
+}
+
+button.card-main:active {
+  transform: scale(0.975);
 }
 
 .card[data-on='true'] .card-main {
   background: linear-gradient(
-    160deg,
-    color-mix(in srgb, var(--c) 22%, var(--surface)),
-    color-mix(in srgb, var(--c) 8%, var(--surface))
+    165deg,
+    color-mix(in srgb, var(--c) 22%, #030b18) 0%,
+    color-mix(in srgb, var(--c) 6%, #020814) 100%
   );
-  border-color: color-mix(in srgb, var(--c) 75%, transparent);
+  border-color: var(--c);
   box-shadow:
-    0 12px 40px -14px color-mix(in srgb, var(--c) 75%, transparent),
-    inset 0 0 0 1px color-mix(in srgb, var(--c) 25%, transparent);
+    0 0 30px -4px color-mix(in srgb, var(--c) 48%, transparent),
+    inset 0 0 26px color-mix(in srgb, var(--c) 13%, transparent);
 }
 
-.card .icon {
-  background: color-mix(in srgb, var(--c) 20%, transparent);
-  border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
-  filter: grayscale(0.35);
-  transition: background 0.3s, filter 0.3s, box-shadow 0.3s;
+/* Azulejo do ícone */
+.card-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  font-size: 34px;
+  line-height: 1;
+  background: color-mix(in srgb, var(--c) 12%, #0a1428);
+  border: 1px solid color-mix(in srgb, var(--c) 20%, #16264a);
+  transition: background 0.35s, box-shadow 0.35s, border-color 0.35s;
 }
 
-.card[data-on='true'] .icon {
-  background: var(--c);
-  filter: none;
-  box-shadow: 0 0 22px color-mix(in srgb, var(--c) 70%, transparent);
-}
-
-.card .state-text {
-  color: var(--muted);
-}
-
-.card[data-on='true'] .state-text {
-  color: var(--c);
-}
-
-.card[data-unknown='true'] .state-text {
-  opacity: 0.6;
-}
-
-.card .switch {
-  background: #2a3652;
-}
-
-.card[data-on='true'] .switch {
-  background: var(--c);
-}
-
-.card .thumb {
-  transform: translateX(0);
-}
-
-.card[data-on='true'] .thumb {
-  transform: translateX(22px);
-}
-
-.card[data-pending='true'] .card-main {
+.card-icon > span {
+  transition: filter 0.35s, opacity 0.35s;
+  filter: grayscale(0.7);
   opacity: 0.75;
 }
 
-.card[data-pending='true'] .thumb {
-  animation: wiggle 0.7s ease-in-out infinite;
+.card[data-on='true'] .card-icon {
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--c) 84%, white) 0%,
+    color-mix(in srgb, var(--c) 96%, black) 100%
+  );
+  border-color: transparent;
+  box-shadow: 0 8px 24px -8px color-mix(in srgb, var(--c) 80%, transparent);
 }
 
-.card[data-on='true'][data-pending='true'] .thumb {
-  animation: wiggle-on 0.7s ease-in-out infinite;
+.card[data-on='true'] .card-icon > span {
+  filter: none;
+  opacity: 1;
 }
 
-@keyframes wiggle {
-  50% {
-    transform: scale(0.82);
-  }
+.card-name {
+  margin-top: 13px;
+  word-spacing: 0.16em;
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-@keyframes wiggle-on {
-  0%,
-  100% {
-    transform: translateX(22px) scale(1);
-  }
-  50% {
-    transform: translateX(22px) scale(0.82);
-  }
+.card-foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 10px;
+}
+
+/* Estado: ponto + texto. Verde = ligado, cinzento = desligado. */
+.card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-bottom: 13px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.card-status > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-status > i {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.card[data-on='true'] .card-status {
+  color: var(--ok);
+}
+
+.card[data-on='true'] .card-status > i {
+  box-shadow: 0 0 9px currentColor;
+}
+
+.card[data-pending='true'] .card-status {
+  color: var(--soft);
+}
+
+.card[data-pending='true'] .card-status > i {
+  animation: pulse 0.8s ease-in-out infinite;
+}
+
+/* Interruptor */
+.switch {
+  position: relative;
+  flex: none;
+  width: 48px;
+  height: 28px;
+  padding: 3px;
+  border-radius: 999px;
+  background: #142240;
+  box-shadow: inset 0 0 0 1px #223662;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.switch > i {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: transform 0.28s cubic-bezier(0.3, 1.35, 0.5, 1);
+}
+
+.card[data-on='true'] .switch {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) 94%, black), var(--c));
+  box-shadow: 0 0 18px -2px color-mix(in srgb, var(--c) 65%, transparent);
+}
+
+.card[data-on='true'] .switch > i {
+  transform: translateX(20px);
+}
+
+.card[data-pending='true'] .card-main {
+  animation: breathe 1s ease-in-out infinite;
+}
+
+/* Dispositivo/servidor indisponível: mostra o último estado, mas esbatido */
+.card[data-stale='true'] .card-main {
+  opacity: 0.55;
+  box-shadow: none;
+  filter: saturate(0.55);
 }
 
 .edit-btn {
-  background: rgba(11, 17, 32, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  color: #fff;
+  background: rgba(0, 4, 12, 0.55);
+  border: 1px solid color-mix(in srgb, var(--c) 22%, rgba(255, 255, 255, 0.08));
+  transition: background 0.2s, transform 0.12s;
 }
 
 .edit-btn:hover {
-  background: rgba(11, 17, 32, 0.85);
+  background: rgba(0, 4, 12, 0.85);
 }
 
-/* Preview card in edit dialog */
-.preview-card {
-  background: linear-gradient(
-    160deg,
-    color-mix(in srgb, var(--c) 22%, var(--surface)),
-    color-mix(in srgb, var(--c) 8%, var(--surface))
-  );
-  border: 1px solid color-mix(in srgb, var(--c) 75%, transparent);
-  box-shadow:
-    0 12px 40px -14px color-mix(in srgb, var(--c) 75%, transparent),
-    inset 0 0 0 1px color-mix(in srgb, var(--c) 25%, transparent);
+.edit-btn:active {
+  transform: scale(0.92);
+}
+
+/* Telemóveis estreitos: dá prioridade ao texto do estado */
+@media (max-width: 375px) {
+  .card-main {
+    padding: 12px 12px 12px;
+  }
+
+  .card-status > i {
+    display: none;
+  }
+}
+
+/* ───────────── Rodapé em pílula ───────────── */
+
+.footer-pill {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1.5px solid #12295a;
+  background: rgba(4, 12, 30, 0.75);
+  color: var(--soft);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.sync-icon {
+  flex: none;
+  color: var(--ok);
+  animation: spin-once 0.9s ease-out 1;
+}
+
+/* ───────────── Diálogos ───────────── */
+
+.dialog-backdrop {
+  background: rgba(1, 5, 14, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: fade-in 0.18s ease-out;
+}
+
+.dialog-panel {
+  background: linear-gradient(180deg, #08142b, #050d1f);
+  border: 1.5px solid var(--line);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8), 0 0 60px -30px rgba(47, 132, 255, 0.5);
+  animation: pop-in 0.22s cubic-bezier(0.2, 1.1, 0.4, 1);
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--soft);
+}
+
+.field-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  color: var(--text);
+  background: #030a18;
+  border: 1.5px solid var(--line-soft);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.field-input::placeholder {
+  color: #4a5c85;
+}
+
+.field-input:focus {
+  outline: none;
+  border-color: var(--primary-line);
+  box-shadow: 0 0 0 3px rgba(47, 132, 255, 0.25);
+}
+
+.field-input[aria-invalid='true'] {
+  border-color: var(--err);
+}
+
+.btn {
+  padding: 11px 16px;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: rgba(10, 26, 54, 0.9);
+  border: 1.5px solid var(--line-soft);
+  transition: background 0.2s, transform 0.12s;
+}
+
+.btn:hover {
+  background: #0d2148;
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+.btn-primary {
+  color: #fff;
+  background: linear-gradient(180deg, var(--primary-1), var(--primary-2));
+  border-color: var(--primary-line);
+  box-shadow: 0 0 20px -4px rgba(47, 132, 255, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(180deg, #1259f0, #0c40cc);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.btn-danger {
+  color: var(--err);
+}
+
+.swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid #050d1f;
+  box-shadow: 0 0 0 1px var(--line-soft);
+  transition: box-shadow 0.2s, transform 0.12s;
+}
+
+.swatch[aria-pressed='true'],
+.swatch[data-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--text);
+}
+
+.swatch:active {
+  transform: scale(0.9);
+}
+
+.icon-choice {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  font-size: 1.25rem;
+  background: #030a18;
+  border: 1.5px solid var(--line-soft);
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.icon-choice[aria-pressed='true'] {
+  border-color: var(--primary-line);
+  background: var(--surface-2);
+  box-shadow: 0 0 0 3px rgba(47, 132, 255, 0.25);
+}
+
+/* ───────────── Toast ───────────── */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 11px 18px;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  background: #0a1730;
+  border: 1.5px solid var(--line);
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.7);
+  transition: opacity 0.25s, transform 0.25s;
+}
+
+.toast[data-kind='error'] {
+  border-color: color-mix(in srgb, var(--err) 65%, transparent);
+}
+
+/* ───────────── Animações ───────────── */
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes breathe {
+  50% {
+    box-shadow: 0 0 34px -2px color-mix(in srgb, var(--c) 60%, transparent);
+  }
+}
+
+@keyframes spin-once {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     animation: none !important;
     transition: none !important;
   }

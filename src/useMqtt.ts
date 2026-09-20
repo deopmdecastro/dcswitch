@@ -4,6 +4,11 @@ import { AppConfig, BrokerState, RelayState } from './types';
 import { topicPrefix, mqttUrl, initialStates } from './config';
 import { MIN_CHANNELS, RESPONSE_TIMEOUT_MS } from './constants';
 
+interface UseMqttOptions {
+  /** Chamado quando um comando não recebe resposta do dispositivo a tempo. */
+  onNoResponse?: (channel: number) => void;
+}
+
 interface UseMqttResult {
   states: RelayState[];
   deviceOnline: boolean | null;
@@ -14,7 +19,11 @@ interface UseMqttResult {
   lastUpdate: Date | null;
 }
 
-export function useMqtt(cfg: AppConfig, params: URLSearchParams): UseMqttResult {
+export function useMqtt(
+  cfg: AppConfig,
+  params: URLSearchParams,
+  { onNoResponse }: UseMqttOptions = {},
+): UseMqttResult {
   const [states, setStates] = useState<RelayState[]>(initialStates);
   const [deviceOnline, setDeviceOnline] = useState<boolean | null>(null);
   const [brokerState, setBrokerState] = useState<BrokerState>('connecting');
@@ -23,11 +32,14 @@ export function useMqtt(cfg: AppConfig, params: URLSearchParams): UseMqttResult 
 
   const clientRef = useRef<MqttClient | null>(null);
   const pendingTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const bulkTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
   const statesRef = useRef<RelayState[]>(states);
-  statesRef.current = states;
+  const onNoResponseRef = useRef(onNoResponse);
+  onNoResponseRef.current = onNoResponse;
 
   const settlePending = useCallback((i: number) => {
     setPending((prev) => {
+      if (!prev.has(i)) return prev;
       const next = new Set(prev);
       next.delete(i);
       return next;
@@ -44,10 +56,7 @@ export function useMqtt(cfg: AppConfig, params: URLSearchParams): UseMqttResult 
       const client = clientRef.current;
       if (!client || !client.connected) return;
       const prefix = topicPrefix(cfg, params);
-      client.publish(
-        `${prefix}/cmd`,
-        JSON.stringify({ action: 'toggle', channel: i }),
-      );
+      client.publish(`${prefix}/cmd`, JSON.stringify({ action: 'toggle', channel: i }));
       setPending((prev) => {
         const next = new Set(prev);
         next.add(i);
@@ -58,7 +67,9 @@ export function useMqtt(cfg: AppConfig, params: URLSearchParams): UseMqttResult 
       pendingTimers.current.set(
         i,
         setTimeout(() => {
+          // Sem resposta: deixa de mostrar "a aplicar" e avisa.
           settlePending(i);
+          onNoResponseRef.current?.(i);
         }, RESPONSE_TIMEOUT_MS),
       );
     },
@@ -75,11 +86,15 @@ export function useMqtt(cfg: AppConfig, params: URLSearchParams): UseMqttResult 
 
   const setAll = useCallback(
     (target: boolean) => {
-      const current = statesRef.current;
       let delay = 0;
-      current.forEach((s, i) => {
+      statesRef.current.forEach((s, i) => {
         if (s !== null && s !== target) {
-          setTimeout(() => sendToggle(i), delay);
+          // Pequeno intervalo entre comandos para não sobrecarregar o firmware/broker.
+          const t = setTimeout(() => {
+            bulkTimers.current.delete(t);
+            sendToggle(i);
+          }, delay);
+          bulkTimers.current.add(t);
           delay += 90;
         }
       });
@@ -93,13 +108,18 @@ export function useMqtt(cfg: AppConfig, params: URLSearchParams): UseMqttResult 
     const stateTopic = `${prefix}/state`;
     const statusTopic = `${prefix}/status`;
     const url = mqttUrl(cfg, params);
+    const timers = pendingTimers.current;
+    const bulk = bulkTimers.current;
 
-    setStates(initialStates());
+    const fresh = initialStates();
+    statesRef.current = fresh;
+    setStates(fresh);
     setDeviceOnline(null);
     setBrokerState('connecting');
     setPending(new Set());
-    pendingTimers.current.forEach((t) => clearTimeout(t));
-    pendingTimers.current.clear();
+    setLastUpdate(null);
+    timers.forEach((t) => clearTimeout(t));
+    timers.clear();
 
     let client: MqttClient;
     try {
@@ -144,25 +164,31 @@ export function useMqtt(cfg: AppConfig, params: URLSearchParams): UseMqttResult 
       }
       if (!data || !Array.isArray(data.states)) return;
 
-      setStates((prev) => {
-        const next = [...prev];
-        data.states!.forEach((value, i) => {
-          const v = !!value;
-          if (next[i] !== v) settlePending(i);
-          next[i] = v;
-        });
-        while (next.length < MIN_CHANNELS) next.push(null);
-        return next;
+      // Calcula o novo estado fora do setState (sem efeitos colaterais no updater).
+      const prev = statesRef.current;
+      const next = [...prev];
+      data.states.forEach((value, i) => {
+        const v = !!value;
+        if (next[i] !== v) settlePending(i);
+        next[i] = v;
       });
+      while (next.length < MIN_CHANNELS) next.push(null);
+      statesRef.current = next;
+      setStates(next);
       setLastUpdate(new Date());
     });
 
     return () => {
       client.removeAllListeners();
+      // Um cliente ainda a ligar pode emitir 'error' (ex.: connack timeout) depois de terminado;
+      // sem nenhum listener o EventEmitter lançaria uma exceção não tratada.
+      client.on('error', () => {});
       client.end(true);
       clientRef.current = null;
-      pendingTimers.current.forEach((t) => clearTimeout(t));
-      pendingTimers.current.clear();
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
+      bulk.forEach((t) => clearTimeout(t));
+      bulk.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cfg.mqtt, cfg.topic]);
