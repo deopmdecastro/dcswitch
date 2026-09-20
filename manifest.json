@@ -1,9 +1,15 @@
 {
-  "name": "Painel ESP32-S2",
-  "short_name": "ESP32-S2",
-  "start_url": "/",
+  "name": "DC Switch · Painel de Controlo",
+  "short_name": "DC Switch",
+  "description": "Painel para controlar interruptores (relés) ligados a um ESP32 via MQTT.",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
-  "lang": "pt"
+  "orientation": "portrait",
+  "background_color": "#0b1120",
+  "theme_color": "#0b1120",
+  "lang": "pt",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
 }

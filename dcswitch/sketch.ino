@@ -17,6 +17,7 @@ const char *MQTT_BROKER = "broker.hivemq.com";
 const int MQTT_PORT = 1883;
 const char *COMMAND_TOPIC = "dcswitch/475688253278273537/cmd";
 const char *STATE_TOPIC = "dcswitch/475688253278273537/state";
+const char *STATUS_TOPIC = "dcswitch/475688253278273537/status"; // "online" / "offline" (LWT)
 
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
@@ -101,9 +102,11 @@ void connectMqtt() {
     String clientId = "dcswitch-sim-" + String((uint32_t)ESP.getEfuseMac(), HEX);
 
     Serial.print("Conectando ao MQTT...");
-    if (mqtt.connect(clientId.c_str())) {
+    // Last Will: se o ESP32 desligar, o broker publica "offline" no tópico de presença
+    if (mqtt.connect(clientId.c_str(), NULL, NULL, STATUS_TOPIC, 0, true, "offline")) {
       Serial.println(" conectado.");
       mqtt.subscribe(COMMAND_TOPIC);
+      mqtt.publish(STATUS_TOPIC, "online", true);
       publishStates();
     } else {
       Serial.print(" falhou, rc=");

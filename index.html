@@ -2,131 +2,704 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0f172a">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1120">
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Automação ESP32">
-  <link rel="manifest" href="/manifest.json">
-  <title>Painel ESP32-S2</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mqtt/dist/mqtt.min.js"></script>
-</head>
-<body class="bg-slate-900 text-white min-h-screen flex flex-col justify-between p-4 font-sans select-none">
+  <meta name="apple-mobile-web-app-title" content="DC Switch">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <title>DC Switch · Painel de Controlo</title>
+  <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --surface: #111a2e;
+      --surface-2: #17223a;
+      --border: #24304b;
+      --text: #e8edf7;
+      --muted: #8b98b3;
+      --ok: #34d399;
+      --warn: #fbbf24;
+      --err: #f87171;
+      --radius: 22px;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; }
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+      background:
+        radial-gradient(900px 500px at 15% -10%, rgba(56, 189, 248, .10), transparent 60%),
+        radial-gradient(800px 500px at 100% 0%, rgba(167, 139, 250, .10), transparent 60%),
+        var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    button { font: inherit; color: inherit; cursor: pointer; }
+    button:focus-visible, input:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 2px; }
 
-  <!-- Cabeçalho -->
-  <header class="text-center py-4 border-b border-slate-800">
-    <h1 class="text-2xl font-bold text-emerald-400">Painel de Controlo</h1>
-    <p id="status" class="text-sm text-yellow-400 mt-1">A ligar ao servidor...</p>
+    /* ---------- Cabeçalho ---------- */
+    header {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      max-width: 760px; width: 100%; margin: 0 auto; padding: 18px 16px 6px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .brand-logo {
+      width: 40px; height: 40px; border-radius: 12px; flex: none;
+      background: linear-gradient(135deg, #34d399, #38bdf8);
+      display: grid; place-items: center; font-size: 22px;
+      box-shadow: 0 6px 20px -6px rgba(56, 189, 248, .6);
+    }
+    h1 { font-size: 1.15rem; margin: 0; line-height: 1.2; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 7px; margin-top: 3px;
+      font-size: .78rem; color: var(--muted);
+    }
+    .pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 0 currentColor; }
+    .pill.ok { color: var(--ok); } .pill.ok i { background: var(--ok); }
+    .pill.warn { color: var(--warn); } .pill.warn i { background: var(--warn); animation: pulse 1.6s infinite; }
+    .pill.err { color: var(--err); } .pill.err i { background: var(--err); }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, .5); } 100% { box-shadow: 0 0 0 8px rgba(251, 191, 36, 0); } }
+
+    .icon-btn {
+      width: 42px; height: 42px; border-radius: 14px; flex: none;
+      background: var(--surface); border: 1px solid var(--border);
+      display: grid; place-items: center; transition: background .2s, transform .1s;
+    }
+    .icon-btn:hover { background: var(--surface-2); }
+    .icon-btn:active { transform: scale(.94); }
+    .icon-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* ---------- Resumo e ações ---------- */
+    .summary {
+      max-width: 760px; width: 100%; margin: 0 auto; padding: 10px 16px 0;
+      display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    }
+    .summary-text { font-size: .9rem; color: var(--muted); }
+    .summary-text b { color: var(--text); font-size: 1.05rem; }
+    .bulk { display: flex; gap: 8px; }
+    .chip-btn {
+      padding: 8px 14px; border-radius: 999px; font-size: .82rem; font-weight: 600;
+      background: var(--surface); border: 1px solid var(--border); transition: background .2s, opacity .2s, transform .1s;
+    }
+    .chip-btn:hover:not(:disabled) { background: var(--surface-2); }
+    .chip-btn:active:not(:disabled) { transform: scale(.96); }
+    .chip-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ---------- Grelha ---------- */
+    main {
+      flex: 1; width: 100%; max-width: 760px; margin: 0 auto; padding: 16px;
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-content: start;
+    }
+    @media (min-width: 640px) { main { gap: 18px; padding: 20px 16px; } }
+
+    .card { position: relative; --c: #34d399; }
+    .card-main {
+      width: 100%; height: 100%; min-height: 172px; text-align: left;
+      display: flex; flex-direction: column; justify-content: space-between; gap: 14px;
+      padding: 16px; border-radius: var(--radius);
+      background: var(--surface);
+      border: 1px solid color-mix(in srgb, var(--c) 35%, var(--border));
+      transition: background .3s, border-color .3s, box-shadow .3s, transform .12s, opacity .2s;
+    }
+    .card-main:active { transform: scale(.97); }
+    .card.on .card-main {
+      background: linear-gradient(160deg, color-mix(in srgb, var(--c) 22%, var(--surface)), color-mix(in srgb, var(--c) 8%, var(--surface)));
+      border-color: color-mix(in srgb, var(--c) 75%, transparent);
+      box-shadow: 0 12px 40px -14px color-mix(in srgb, var(--c) 75%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--c) 25%, transparent);
+    }
+    .icon {
+      width: 50px; height: 50px; border-radius: 16px; font-size: 26px; line-height: 1;
+      display: grid; place-items: center;
+      background: color-mix(in srgb, var(--c) 20%, transparent);
+      border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
+      filter: grayscale(.35); transition: background .3s, filter .3s, box-shadow .3s;
+    }
+    .card.on .icon { background: var(--c); filter: none; box-shadow: 0 0 22px color-mix(in srgb, var(--c) 70%, transparent); }
+    .name {
+      font-weight: 700; font-size: 1.05rem; line-height: 1.2; overflow-wrap: anywhere;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .state-text { font-size: .74rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .card.on .state-text { color: var(--c); }
+    .switch {
+      width: 52px; height: 30px; border-radius: 999px; padding: 3px; flex: none;
+      background: #2a3652; transition: background .3s; display: block;
+    }
+    .thumb { display: block; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .25s cubic-bezier(.3, 1.4, .5, 1); box-shadow: 0 2px 6px rgba(0,0,0,.35); }
+    .card.on .switch { background: var(--c); }
+    .card.on .thumb { transform: translateX(22px); }
+    .card.pending .card-main { opacity: .75; }
+    .card.pending .thumb { animation: wiggle .7s ease-in-out infinite; }
+    @keyframes wiggle { 50% { transform: scale(.82); } }
+    .card.on.pending .thumb { animation-name: wiggle-on; }
+    @keyframes wiggle-on { 0%, 100% { transform: translateX(22px) scale(1); } 50% { transform: translateX(22px) scale(.82); } }
+    .card.unknown .state-text { opacity: .6; }
+    main.offline .card-main { opacity: .6; }
+
+    .edit-btn {
+      position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; border-radius: 11px;
+      background: rgba(11, 17, 32, .55); border: 1px solid rgba(255, 255, 255, .1);
+      display: grid; place-items: center; backdrop-filter: blur(6px); transition: background .2s;
+    }
+    .edit-btn:hover { background: rgba(11, 17, 32, .85); }
+    .edit-btn svg { width: 16px; height: 16px; stroke: var(--text); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    footer { text-align: center; padding: 10px 16px 18px; font-size: .74rem; color: #5d6b88; }
+
+    /* ---------- Diálogos ---------- */
+    dialog {
+      width: min(440px, calc(100% - 28px)); max-height: calc(100dvh - 28px); overflow: auto;
+      padding: 0; border: 1px solid var(--border); border-radius: 26px;
+      background: var(--surface); color: var(--text);
+      box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .7);
+    }
+    dialog::backdrop { background: rgba(4, 8, 18, .65); backdrop-filter: blur(4px); }
+    dialog form { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+    dialog h2 { margin: 0; font-size: 1.1rem; }
+    .field label, .field .label { display: block; font-size: .78rem; font-weight: 600; color: var(--muted); margin-bottom: 7px; text-transform: uppercase; letter-spacing: .05em; }
+    .field input[type="text"], .field input[type="url"] {
+      width: 100%; padding: 12px 14px; border-radius: 14px; font: inherit; color: var(--text);
+      background: var(--bg); border: 1px solid var(--border); user-select: text; -webkit-user-select: text;
+    }
+    .field .hint { font-size: .75rem; color: var(--muted); margin: 6px 0 0; }
+    .preview { max-width: 220px; margin: 0 auto; width: 100%; pointer-events: none; }
+    .icon-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+    .icon-opt {
+      aspect-ratio: 1; border-radius: 12px; font-size: 20px; display: grid; place-items: center;
+      background: var(--bg); border: 1px solid var(--border); padding: 0;
+    }
+    .icon-opt[aria-pressed="true"] { border-color: #7dd3fc; background: var(--surface-2); box-shadow: 0 0 0 2px rgba(125, 211, 252, .35); }
+    .swatches { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .swatch {
+      width: 34px; height: 34px; border-radius: 50%; padding: 0; background: var(--sw);
+      border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--border);
+    }
+    .swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--text); }
+    .swatch-custom { position: relative; overflow: hidden; display: block; background: conic-gradient(#f87171, #fbbf24, #34d399, #38bdf8, #a78bfa, #f87171); }
+    .swatch-custom input { position: absolute; inset: -8px; width: 60px; height: 60px; opacity: 0; cursor: pointer; }
+    .actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .btn { padding: 11px 14px; white-space: nowrap; border-radius: 14px; font-weight: 600; border: 1px solid var(--border); background: var(--surface-2); }
+    .btn:hover { filter: brightness(1.15); }
+    .btn.primary { background: linear-gradient(135deg, #34d399, #38bdf8); color: #06222b; border-color: transparent; }
+    .btn.ghost { background: transparent; color: var(--muted); margin-right: auto; }
+    .btn.danger { color: var(--err); }
+
+    /* ---------- Toast ---------- */
+    #toast {
+      position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px);
+      background: #1d2942; border: 1px solid var(--border); color: var(--text);
+      padding: 11px 18px; border-radius: 999px; font-size: .88rem; max-width: calc(100% - 32px);
+      opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 50; text-align: center;
+    }
+    #toast.show { opacity: 1; transform: translate(-50%, 0); }
+    #toast.err { border-color: rgba(248, 113, 113, .6); }
+
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-logo" aria-hidden="true">⚡</div>
+      <div>
+        <h1>Painel de Controlo</h1>
+        <div id="status" class="pill warn" role="status" aria-live="polite"><i></i><span>A ligar ao servidor…</span></div>
+      </div>
+    </div>
+    <button class="icon-btn" id="btn-settings" type="button" aria-label="Definições de ligação">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
   </header>
 
-  <!-- Grelha de Comandos -->
-  <main class="grid grid-cols-2 gap-4 my-auto max-w-md mx-auto w-full py-6">
-    <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 flex flex-col items-center justify-between shadow-lg">
-      <div class="flex justify-between w-full items-center mb-4">
-        <span class="font-bold text-slate-300">Relé 1</span>
-        <span id="led-0" class="w-4 h-4 rounded-full bg-slate-600 transition-colors duration-300"></span>
-      </div>
-      <button onclick="toggleRelay(0)" class="w-full py-4 bg-slate-700 active:bg-emerald-600 rounded-xl font-semibold transition-all">Alternar</button>
+  <section class="summary">
+    <div class="summary-text" id="summary"><b>–</b> interruptores ligados</div>
+    <div class="bulk">
+      <button class="chip-btn" id="btn-all-on" type="button" disabled>Ligar todos</button>
+      <button class="chip-btn" id="btn-all-off" type="button" disabled>Desligar todos</button>
     </div>
+  </section>
 
-    <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 flex flex-col items-center justify-between shadow-lg">
-      <div class="flex justify-between w-full items-center mb-4">
-        <span class="font-bold text-slate-300">Relé 2</span>
-        <span id="led-1" class="w-4 h-4 rounded-full bg-slate-600 transition-colors duration-300"></span>
+  <main id="grid" aria-label="Interruptores"></main>
+
+  <footer id="footer">Toque num cartão para ligar/desligar · use ✎ para editar nome, cor e ícone</footer>
+
+  <!-- Editor de interruptor -->
+  <dialog id="dlg-edit" aria-labelledby="edit-title">
+    <form id="form-edit" autocomplete="off">
+      <h2 id="edit-title">Editar interruptor</h2>
+      <div class="preview" id="preview"></div>
+      <div class="field">
+        <label for="edit-name">Nome</label>
+        <input type="text" id="edit-name" maxlength="24" placeholder="Ex.: Luz da sala">
       </div>
-      <button onclick="toggleRelay(1)" class="w-full py-4 bg-slate-700 active:bg-emerald-600 rounded-xl font-semibold transition-all">Alternar</button>
-    </div>
-
-    <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 flex flex-col items-center justify-between shadow-lg">
-      <div class="flex justify-between w-full items-center mb-4">
-        <span class="font-bold text-slate-300">Relé 3</span>
-        <span id="led-2" class="w-4 h-4 rounded-full bg-slate-600 transition-colors duration-300"></span>
+      <div class="field">
+        <span class="label">Ícone</span>
+        <div class="icon-grid" id="icon-grid"></div>
       </div>
-      <button onclick="toggleRelay(2)" class="w-full py-4 bg-slate-700 active:bg-emerald-600 rounded-xl font-semibold transition-all">Alternar</button>
-    </div>
-
-    <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 flex flex-col items-center justify-between shadow-lg">
-      <div class="flex justify-between w-full items-center mb-4">
-        <span class="font-bold text-slate-300">Relé 4</span>
-        <span id="led-3" class="w-4 h-4 rounded-full bg-slate-600 transition-colors duration-300"></span>
+      <div class="field">
+        <span class="label">Cor</span>
+        <div class="swatches" id="swatches"></div>
       </div>
-      <button onclick="toggleRelay(3)" class="w-full py-4 bg-slate-700 active:bg-emerald-600 rounded-xl font-semibold transition-all">Alternar</button>
-    </div>
-  </main>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="edit-reset">Repor</button>
+        <button type="button" class="btn" id="edit-cancel">Cancelar</button>
+        <button type="submit" class="btn primary">Guardar</button>
+      </div>
+    </form>
+  </dialog>
 
-  <footer class="text-center py-3 text-xs text-slate-500">
-    ESP32-S2 Web Control
-  </footer>
+  <!-- Definições -->
+  <dialog id="dlg-settings" aria-labelledby="settings-title">
+    <form id="form-settings" autocomplete="off">
+      <h2 id="settings-title">Definições de ligação</h2>
+      <div class="field">
+        <label for="set-mqtt">Servidor MQTT (WebSocket)</label>
+        <input type="url" id="set-mqtt" placeholder="wss://broker.hivemq.com:8884/mqtt">
+      </div>
+      <div class="field">
+        <label for="set-topic">Prefixo do tópico</label>
+        <input type="text" id="set-topic" placeholder="dcswitch/475688253278273537">
+        <p class="hint" id="set-hint">Tem de coincidir com o definido no firmware do ESP32.</p>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn ghost danger" id="set-reset-all">Repor tudo</button>
+        <button type="button" class="btn" id="set-cancel">Cancelar</button>
+        <button type="submit" class="btn primary">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" role="status" aria-live="polite"></div>
 
   <script>
-    let client;
+    'use strict';
+
+    /* ================= Configuração ================= */
+    const DEFAULT_MQTT  = 'wss://broker.hivemq.com:8884/mqtt';
+    const DEFAULT_TOPIC = 'dcswitch/475688253278273537';
+    const STORE_KEY     = 'dcswitch.config.v1';
+    const MIN_CHANNELS  = 4;
+    const RESPONSE_TIMEOUT_MS = 4000;
+
+    const PALETTE = [
+      ['#34d399', 'Verde'], ['#38bdf8', 'Azul'], ['#fbbf24', 'Âmbar'], ['#fb7185', 'Rosa'],
+      ['#a78bfa', 'Violeta'], ['#fb923c', 'Laranja'], ['#22d3ee', 'Ciano'], ['#f472b6', 'Fúcsia']
+    ];
+    const ICONS = ['💡','🔌','🌀','🔥','❄️','🚪','🌿','📺','🔒','🔔','🏠','⚡','🛋️','🚿','🎵','🚗'];
+    const DEFAULT_ICONS = ['💡','🔌','🌀','🔥'];
+    const HEX = /^#[0-9a-f]{6}$/i;
+
     const params = new URLSearchParams(window.location.search);
-    const mqttUrl = params.get('mqtt') || 'wss://broker.hivemq.com:8884/mqtt';
-    const topicPrefix = params.get('topic') || 'dcswitch/475688253278273537';
-    const commandTopic = `${topicPrefix}/cmd`;
-    const stateTopic = `${topicPrefix}/state`;
 
-    function updateStatus(message, className) {
-      document.getElementById('status').innerText = message;
-      document.getElementById('status').className = className;
+    /* ================= Persistência ================= */
+    function loadConfig() {
+      try {
+        const raw = localStorage.getItem(STORE_KEY);
+        if (raw) {
+          const p = JSON.parse(raw);
+          return {
+            channels: Array.isArray(p.channels) ? p.channels : [],
+            mqtt: typeof p.mqtt === 'string' ? p.mqtt : '',
+            topic: typeof p.topic === 'string' ? p.topic : ''
+          };
+        }
+      } catch (e) { /* ignorado: usa valores por omissão */ }
+      return { channels: [], mqtt: '', topic: '' };
+    }
+    function saveConfig() {
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); }
+      catch (e) { toast('Não foi possível guardar as alterações neste browser.', true); }
     }
 
-    function connect() {
-      client = mqtt.connect(mqttUrl, {
-        clientId: `dcswitch_html_${Math.random().toString(16).slice(2)}`,
-        clean: true,
-        connectTimeout: 5000,
-        reconnectPeriod: 2000
-      });
+    let cfg = loadConfig();
 
-      client.on('connect', () => {
-        updateStatus('Ligado ao MQTT. A aguardar simulador...', 'text-sm text-yellow-400 mt-1');
-        client.subscribe(stateTopic);
-      });
+    function channelDefaults(i) {
+      return { name: `Relé ${i + 1}`, color: PALETTE[i % PALETTE.length][0], icon: DEFAULT_ICONS[i % DEFAULT_ICONS.length] };
+    }
+    function channelCfg(i) {
+      const d = channelDefaults(i);
+      const c = cfg.channels[i] || {};
+      return {
+        name: (typeof c.name === 'string' && c.name.trim()) ? c.name.trim().slice(0, 24) : d.name,
+        color: (typeof c.color === 'string' && HEX.test(c.color)) ? c.color.toLowerCase() : d.color,
+        icon: (typeof c.icon === 'string' && c.icon) ? c.icon : d.icon
+      };
+    }
+    function mqttUrl()    { return params.get('mqtt')  || cfg.mqtt  || DEFAULT_MQTT; }
+    function topicPrefix(){ return params.get('topic') || cfg.topic || DEFAULT_TOPIC; }
 
-      client.on('reconnect', () => {
-        updateStatus('A reconectar ao simulador...', 'text-sm text-yellow-400 mt-1');
-      });
+    /* ================= Estado da aplicação ================= */
+    let client = null;
+    let states = new Array(MIN_CHANNELS).fill(null); // true | false | null (desconhecido)
+    let deviceOnline = null;                          // true | false | null (firmware sem estado de presença)
+    let brokerState = 'connecting';                   // connecting | connected | reconnecting | offline | error
+    const pending = new Set();
+    const pendingTimers = new Map();
+    const cards = [];
 
-      client.on('offline', () => {
-        updateStatus('Simulador offline', 'text-sm text-red-400 mt-1');
-      });
+    const $ = (id) => document.getElementById(id);
+    const grid = $('grid');
 
-      client.on('error', () => {
-        updateStatus('Erro na ligacao MQTT', 'text-sm text-red-400 mt-1');
-      });
-
-      client.on('message', (topic, payload) => {
-        if (topic !== stateTopic) return;
-
-        const data = JSON.parse(payload.toString());
-        if (!Array.isArray(data.states)) return;
-
-        updateStatus('Conectado ao simulador', 'text-sm text-emerald-400 mt-1');
-
-        data.states.forEach((state, index) => {
-          const led = document.getElementById(`led-${index}`);
-          if (!led) return;
-
-          if (state) {
-            led.className = "w-4 h-4 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981]";
-          } else {
-            led.className = "w-4 h-4 rounded-full bg-slate-600";
-          }
-        });
-      });
+    /* ================= Cartões ================= */
+    function buildCard() {
+      const el = document.createElement('article');
+      el.className = 'card';
+      el.innerHTML =
+        '<button class="card-main" type="button">' +
+          '<span class="icon" aria-hidden="true"></span>' +
+          '<span class="name"></span>' +
+          '<span class="meta"><span class="state-text"></span>' +
+          '<span class="switch" aria-hidden="true"><span class="thumb"></span></span></span>' +
+        '</button>' +
+        '<button class="edit-btn" type="button">' +
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>' +
+        '</button>';
+      return el;
     }
 
-    function toggleRelay(index) {
-      if (client && client.connected) {
-        client.publish(commandTopic, JSON.stringify({ action: "toggle", channel: index }));
-      } else {
-        updateStatus('Simulador desconectado', 'text-sm text-red-400 mt-1');
+    function fillCard(el, conf, state, isPending) {
+      const unknownLabel = (deviceOnline === false || brokerState !== 'connected') ? 'Offline' : 'Aguarda';
+      const label = state === true ? 'Ligado' : state === false ? 'Desligado' : unknownLabel;
+      el.style.setProperty('--c', conf.color);
+      el.classList.toggle('on', state === true);
+      el.classList.toggle('unknown', state === null);
+      el.classList.toggle('pending', !!isPending);
+      const main = el.querySelector('.card-main');
+      main.setAttribute('aria-pressed', String(state === true));
+      main.setAttribute('aria-label', `${conf.name}: ${label}`);
+      el.querySelector('.icon').textContent = conf.icon;
+      el.querySelector('.name').textContent = conf.name;
+      el.querySelector('.state-text').textContent = label;
+      const edit = el.querySelector('.edit-btn');
+      if (edit) edit.setAttribute('aria-label', `Editar ${conf.name}`);
+    }
+
+    function ensureCards() {
+      const n = Math.max(MIN_CHANNELS, states.length);
+      while (cards.length < n) {
+        const el = buildCard();
+        el.dataset.i = String(cards.length);
+        cards.push(el);
+        grid.appendChild(el);
       }
     }
 
-    window.onload = connect;
+    function render() {
+      ensureCards();
+      cards.forEach((el, i) => fillCard(el, channelCfg(i), states[i] ?? null, pending.has(i)));
+      const known = states.filter((s) => s !== null);
+      const on = known.filter(Boolean).length;
+      $('summary').innerHTML = known.length
+        ? `<b>${on}</b> de ${cards.length} ligados`
+        : '<b>–</b> interruptores ligados';
+      const ready = canControl(false);
+      $('btn-all-on').disabled  = !ready || known.every(Boolean);
+      $('btn-all-off').disabled = !ready || known.every((s) => !s);
+      grid.classList.toggle('offline', !ready);
+    }
+
+    /* ================= Estado da ligação ================= */
+    function setStatus(text, cls) {
+      const el = $('status');
+      el.className = 'pill ' + cls;
+      el.querySelector('span').textContent = text;
+    }
+
+    function refreshStatus() {
+      const haveState = states.some((s) => s !== null);
+      if (brokerState === 'error')            setStatus('Erro na ligação ao servidor', 'err');
+      else if (brokerState === 'offline')     setStatus('Sem ligação ao servidor', 'err');
+      else if (brokerState === 'reconnecting')setStatus('A reconectar…', 'warn');
+      else if (brokerState === 'connecting')  setStatus('A ligar ao servidor…', 'warn');
+      else if (deviceOnline === false)        setStatus('Dispositivo offline', 'err');
+      else if (deviceOnline === true || haveState) setStatus('Dispositivo online', 'ok');
+      else                                    setStatus('Ligado · à espera do dispositivo…', 'warn');
+      render();
+    }
+
+    function canControl(showToast) {
+      let msg = null;
+      if (!client || !client.connected)  msg = 'Sem ligação ao servidor.';
+      else if (deviceOnline === false)   msg = 'O dispositivo está offline.';
+      else if (!states.some((s) => s !== null)) msg = 'Ainda sem estado do dispositivo.';
+      if (msg && showToast) toast(msg, true);
+      return !msg;
+    }
+
+    /* ================= MQTT ================= */
+    function connect() {
+      if (client) { client.removeAllListeners(); client.end(true); client = null; }
+      states = new Array(MIN_CHANNELS).fill(null);
+      deviceOnline = null;
+      brokerState = 'connecting';
+      pending.clear();
+      pendingTimers.forEach(clearTimeout);
+      pendingTimers.clear();
+      refreshStatus();
+
+      const prefix = topicPrefix();
+      const stateTopic = `${prefix}/state`;
+      const statusTopic = `${prefix}/status`;
+
+      if (typeof mqtt === 'undefined') {
+        brokerState = 'error';
+        refreshStatus();
+        toast('Não foi possível carregar a biblioteca MQTT.', true);
+        return;
+      }
+
+      try {
+        client = mqtt.connect(mqttUrl(), {
+          clientId: `dcswitch_html_${Math.random().toString(16).slice(2)}`,
+          clean: true,
+          connectTimeout: 5000,
+          reconnectPeriod: 2000
+        });
+      } catch (e) {
+        brokerState = 'error';
+        refreshStatus();
+        toast('Endereço MQTT inválido.', true);
+        return;
+      }
+
+      client.on('connect', () => {
+        brokerState = 'connected';
+        client.subscribe([stateTopic, statusTopic]);
+        refreshStatus();
+      });
+      client.on('reconnect', () => { brokerState = 'reconnecting'; refreshStatus(); });
+      client.on('close',     () => { if (brokerState === 'connected') { brokerState = 'offline'; refreshStatus(); } });
+      client.on('offline',   () => { brokerState = 'offline'; refreshStatus(); });
+      client.on('error',     () => { brokerState = 'error';   refreshStatus(); });
+
+      client.on('message', (topic, payload) => {
+        const text = payload.toString();
+        if (topic === statusTopic) {
+          deviceOnline = text.trim().toLowerCase() === 'online';
+          refreshStatus();
+          return;
+        }
+        if (topic !== stateTopic) return;
+
+        let data;
+        try { data = JSON.parse(text); } catch (e) { return; }
+        if (!data || !Array.isArray(data.states)) return;
+
+        data.states.forEach((value, i) => {
+          const next = !!value;
+          if (states[i] !== next) settlePending(i);
+          states[i] = next;
+        });
+        while (states.length < MIN_CHANNELS) states.push(null);
+        $('footer').textContent = `Última atualização às ${new Date().toLocaleTimeString('pt-PT')} · ${prefix}`;
+        refreshStatus();
+      });
+    }
+
+    function settlePending(i) {
+      pending.delete(i);
+      clearTimeout(pendingTimers.get(i));
+      pendingTimers.delete(i);
+    }
+
+    function sendToggle(i) {
+      client.publish(`${topicPrefix()}/cmd`, JSON.stringify({ action: 'toggle', channel: i }));
+      pending.add(i);
+      clearTimeout(pendingTimers.get(i));
+      pendingTimers.set(i, setTimeout(() => {
+        settlePending(i);
+        render();
+        toast(`Sem resposta de "${channelCfg(i).name}".`, true);
+      }, RESPONSE_TIMEOUT_MS));
+    }
+
+    function toggleRelay(i) {
+      if (!canControl(true)) return;
+      if (navigator.vibrate) navigator.vibrate(15);
+      sendToggle(i);
+      render();
+    }
+
+    function setAll(target) {
+      if (!canControl(true)) return;
+      let delay = 0;
+      states.forEach((s, i) => {
+        if (s !== null && s !== target) {
+          setTimeout(() => { if (client && client.connected) { sendToggle(i); render(); } }, delay);
+          delay += 90;
+        }
+      });
+      if (navigator.vibrate) navigator.vibrate(25);
+      if (!delay) toast(target ? 'Já estão todos ligados.' : 'Já estão todos desligados.');
+    }
+
+    /* ================= Toast ================= */
+    let toastTimer;
+    function toast(message, isError) {
+      const el = $('toast');
+      el.textContent = message;
+      el.classList.toggle('err', !!isError);
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+    }
+
+    /* ================= Editor de interruptor ================= */
+    const dlgEdit = $('dlg-edit');
+    let editIndex = null;
+    let draft = null;
+    let previewEl = null;
+
+    function updatePreview() {
+      const conf = { name: draft.name.trim() || channelDefaults(editIndex).name, color: draft.color, icon: draft.icon };
+      fillCard(previewEl, conf, true, false);
+    }
+
+    function buildIconGrid() {
+      const box = $('icon-grid');
+      box.innerHTML = '';
+      ICONS.forEach((ic) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'icon-opt';
+        b.textContent = ic;
+        b.setAttribute('aria-label', `Ícone ${ic}`);
+        b.setAttribute('aria-pressed', String(ic === draft.icon));
+        b.addEventListener('click', () => { draft.icon = ic; buildIconGrid(); updatePreview(); });
+        box.appendChild(b);
+      });
+    }
+
+    function buildSwatches() {
+      const box = $('swatches');
+      box.innerHTML = '';
+      let matched = false;
+      PALETTE.forEach(([hex, label]) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'swatch';
+        b.style.setProperty('--sw', hex);
+        b.setAttribute('aria-label', label);
+        const active = hex === draft.color;
+        if (active) matched = true;
+        b.setAttribute('aria-pressed', String(active));
+        b.addEventListener('click', () => { draft.color = hex; buildSwatches(); updatePreview(); });
+        box.appendChild(b);
+      });
+      const custom = document.createElement('label');
+      custom.className = 'swatch swatch-custom';
+      custom.title = 'Cor personalizada';
+      custom.setAttribute('aria-pressed', String(!matched));
+      if (!matched) custom.style.background = draft.color;
+      const input = document.createElement('input');
+      input.type = 'color';
+      input.value = draft.color;
+      input.setAttribute('aria-label', 'Cor personalizada');
+      input.addEventListener('input', () => { draft.color = input.value.toLowerCase(); updatePreview(); });
+      input.addEventListener('change', () => { draft.color = input.value.toLowerCase(); buildSwatches(); updatePreview(); });
+      custom.appendChild(input);
+      box.appendChild(custom);
+    }
+
+    function openEditor(i) {
+      editIndex = i;
+      const c = channelCfg(i);
+      draft = { name: cfg.channels[i] && cfg.channels[i].name ? c.name : '', color: c.color, icon: c.icon };
+      $('edit-name').value = draft.name;
+      $('edit-title').textContent = `Editar interruptor ${i + 1}`;
+      const pv = $('preview');
+      pv.innerHTML = '';
+      previewEl = buildCard();
+      previewEl.querySelector('.edit-btn').remove();
+      pv.appendChild(previewEl);
+      buildIconGrid();
+      buildSwatches();
+      updatePreview();
+      dlgEdit.showModal();
+    }
+
+    $('edit-name').addEventListener('input', (e) => { draft.name = e.target.value; updatePreview(); });
+    $('edit-cancel').addEventListener('click', () => dlgEdit.close());
+    $('edit-reset').addEventListener('click', () => {
+      const d = channelDefaults(editIndex);
+      draft = { name: '', color: d.color, icon: d.icon };
+      $('edit-name').value = '';
+      buildIconGrid(); buildSwatches(); updatePreview();
+    });
+    $('form-edit').addEventListener('submit', (e) => {
+      e.preventDefault();
+      while (cfg.channels.length <= editIndex) cfg.channels.push(null);
+      cfg.channels[editIndex] = { name: draft.name.trim(), color: draft.color, icon: draft.icon };
+      saveConfig();
+      dlgEdit.close();
+      render();
+      toast('Interruptor atualizado.');
+    });
+
+    /* ================= Definições ================= */
+    const dlgSettings = $('dlg-settings');
+
+    $('btn-settings').addEventListener('click', () => {
+      $('set-mqtt').value = cfg.mqtt;
+      $('set-mqtt').placeholder = DEFAULT_MQTT;
+      $('set-topic').value = cfg.topic;
+      $('set-topic').placeholder = DEFAULT_TOPIC;
+      const overridden = params.has('mqtt') || params.has('topic');
+      $('set-hint').textContent = overridden
+        ? 'Atenção: os parâmetros ?mqtt= / ?topic= do endereço têm prioridade sobre estas definições.'
+        : 'Tem de coincidir com o definido no firmware do ESP32. Deixe vazio para usar o valor por omissão.';
+      dlgSettings.showModal();
+    });
+    $('set-cancel').addEventListener('click', () => dlgSettings.close());
+    $('form-settings').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const url = $('set-mqtt').value.trim();
+      if (url && !/^(wss?|mqtts?):\/\//i.test(url)) { toast('O servidor tem de começar por ws:// ou wss://', true); return; }
+      cfg.mqtt = url;
+      cfg.topic = $('set-topic').value.trim().replace(/\/+$/, '');
+      saveConfig();
+      dlgSettings.close();
+      connect();
+      toast('Definições guardadas.');
+    });
+    $('set-reset-all').addEventListener('click', () => {
+      if (!confirm('Repor nomes, cores, ícones e definições de ligação?')) return;
+      cfg = { channels: [], mqtt: '', topic: '' };
+      saveConfig();
+      dlgSettings.close();
+      connect();
+      toast('Tudo reposto.');
+    });
+
+    // Fechar diálogos ao tocar fora
+    [dlgEdit, dlgSettings].forEach((d) => d.addEventListener('click', (e) => { if (e.target === d) d.close(); }));
+
+    /* ================= Eventos da grelha ================= */
+    grid.addEventListener('click', (e) => {
+      const card = e.target.closest('.card');
+      if (!card) return;
+      const i = Number(card.dataset.i);
+      if (e.target.closest('.edit-btn')) openEditor(i);
+      else if (e.target.closest('.card-main')) toggleRelay(i);
+    });
+    $('btn-all-on').addEventListener('click',  () => setAll(true));
+    $('btn-all-off').addEventListener('click', () => setAll(false));
+
+    /* ================= Arranque ================= */
+    render();
+    connect();
   </script>
 </body>
 </html>
