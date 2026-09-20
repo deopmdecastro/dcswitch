@@ -247,6 +247,7 @@ function App() {
           <Settings className="w-[22px] h-[22px]" strokeWidth={2} />
         </button>
       </header>
+      </div>
 
       {/* Resumo + ações em bloco */}
       <section className="px-4 pt-3.5 pb-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-2.5">
@@ -285,7 +286,6 @@ function App() {
           </button>
         </div>
       </section>
-      </div>
 
       {/* Interruptores */}
       <main className="flex-1 px-4 pt-4 pb-4 grid grid-cols-2 gap-3 content-start" aria-label="Interruptores">
