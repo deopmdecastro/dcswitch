@@ -1,0 +1,6 @@
+.pio/
+.platformio/
+.vscode/
+*.log
+*.tmp
+wokwi.vcd

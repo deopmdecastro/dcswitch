@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Automação ESP32">
+  <link rel="manifest" href="/manifest.json">
+  <title>Painel ESP32-S2</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mqtt/dist/mqtt.min.js"></script>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col justify-between p-4 font-sans select-none">
+
+  <!-- Cabeçalho -->
+  <header class="text-center py-4 border-b border-slate-800">
+    <h1 class="text-2xl font-bold text-emerald-400">Painel de Controlo</h1>
+    <p id="status" class="text-sm text-yellow-400 mt-1">A ligar ao servidor...</p>
+  </header>
+
+  <!-- Grelha de Comandos -->
+  <main class="grid grid-cols-2 gap-4 my-auto max-w-md mx-auto w-full py-6">
+    <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 flex flex-col items-center justify-between shadow-lg">
+      <div class="flex justify-between w-full items-center mb-4">
+        <span class="font-bold text-slate-300">Relé 1</span>
+        <span id="led-0" class="w-4 h-4 rounded-full bg-slate-600 transition-colors duration-300"></span>
+      </div>
+      <button onclick="toggleRelay(0)" class="w-full py-4 bg-slate-700 active:bg-emerald-600 rounded-xl font-semibold transition-all">Alternar</button>
+    </div>
+
+    <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 flex flex-col items-center justify-between shadow-lg">
+      <div class="flex justify-between w-full items-center mb-4">
+        <span class="font-bold text-slate-300">Relé 2</span>
+        <span id="led-1" class="w-4 h-4 rounded-full bg-slate-600 transition-colors duration-300"></span>
+      </div>
+      <button onclick="toggleRelay(1)" class="w-full py-4 bg-slate-700 active:bg-emerald-600 rounded-xl font-semibold transition-all">Alternar</button>
+    </div>
+
+    <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 flex flex-col items-center justify-between shadow-lg">
+      <div class="flex justify-between w-full items-center mb-4">
+        <span class="font-bold text-slate-300">Relé 3</span>
+        <span id="led-2" class="w-4 h-4 rounded-full bg-slate-600 transition-colors duration-300"></span>
+      </div>
+      <button onclick="toggleRelay(2)" class="w-full py-4 bg-slate-700 active:bg-emerald-600 rounded-xl font-semibold transition-all">Alternar</button>
+    </div>
+
+    <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 flex flex-col items-center justify-between shadow-lg">
+      <div class="flex justify-between w-full items-center mb-4">
+        <span class="font-bold text-slate-300">Relé 4</span>
+        <span id="led-3" class="w-4 h-4 rounded-full bg-slate-600 transition-colors duration-300"></span>
+      </div>
+      <button onclick="toggleRelay(3)" class="w-full py-4 bg-slate-700 active:bg-emerald-600 rounded-xl font-semibold transition-all">Alternar</button>
+    </div>
+  </main>
+
+  <footer class="text-center py-3 text-xs text-slate-500">
+    ESP32-S2 Web Control
+  </footer>
+
+  <script>
+    let client;
+    const params = new URLSearchParams(window.location.search);
+    const mqttUrl = params.get('mqtt') || 'wss://broker.hivemq.com:8884/mqtt';
+    const topicPrefix = params.get('topic') || 'dcswitch/475688253278273537';
+    const commandTopic = `${topicPrefix}/cmd`;
+    const stateTopic = `${topicPrefix}/state`;
+
+    function updateStatus(message, className) {
+      document.getElementById('status').innerText = message;
+      document.getElementById('status').className = className;
+    }
+
+    function connect() {
+      client = mqtt.connect(mqttUrl, {
+        clientId: `dcswitch_html_${Math.random().toString(16).slice(2)}`,
+        clean: true,
+        connectTimeout: 5000,
+        reconnectPeriod: 2000
+      });
+
+      client.on('connect', () => {
+        updateStatus('Ligado ao MQTT. A aguardar simulador...', 'text-sm text-yellow-400 mt-1');
+        client.subscribe(stateTopic);
+      });
+
+      client.on('reconnect', () => {
+        updateStatus('A reconectar ao simulador...', 'text-sm text-yellow-400 mt-1');
+      });
+
+      client.on('offline', () => {
+        updateStatus('Simulador offline', 'text-sm text-red-400 mt-1');
+      });
+
+      client.on('error', () => {
+        updateStatus('Erro na ligacao MQTT', 'text-sm text-red-400 mt-1');
+      });
+
+      client.on('message', (topic, payload) => {
+        if (topic !== stateTopic) return;
+
+        const data = JSON.parse(payload.toString());
+        if (!Array.isArray(data.states)) return;
+
+        updateStatus('Conectado ao simulador', 'text-sm text-emerald-400 mt-1');
+
+        data.states.forEach((state, index) => {
+          const led = document.getElementById(`led-${index}`);
+          if (!led) return;
+
+          if (state) {
+            led.className = "w-4 h-4 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981]";
+          } else {
+            led.className = "w-4 h-4 rounded-full bg-slate-600";
+          }
+        });
+      });
+    }
+
+    function toggleRelay(index) {
+      if (client && client.connected) {
+        client.publish(commandTopic, JSON.stringify({ action: "toggle", channel: index }));
+      } else {
+        updateStatus('Simulador desconectado', 'text-sm text-red-400 mt-1');
+      }
+    }
+
+    window.onload = connect;
+  </script>
+</body>
+</html>
