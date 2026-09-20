@@ -31,6 +31,7 @@ function App() {
   const [editIndex, setEditIndex] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [toast, setToast] = useState<ToastMsg | null>(null);
+  const [refreshingApp, setRefreshingApp] = useState(false);
 
   const showToast = useCallback((message: string, kind: 'info' | 'error' = 'info') => {
     setToast({ id: Date.now(), message, kind });
@@ -174,10 +175,49 @@ function App() {
     showToast('Tudo reposto.');
   };
 
+  const handleRefreshApp = useCallback(async () => {
+    if (refreshingApp) return;
+    setRefreshingApp(true);
+    showToast('A procurar o ultimo deploy...');
+
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(
+          regs.map(async (reg) => {
+            try {
+              await reg.update();
+              await reg.unregister();
+            } catch {
+              /* ignore */
+            }
+          }),
+        );
+      }
+
+      if ('caches' in window) {
+        const names = await caches.keys();
+        await Promise.all(names.map((name) => caches.delete(name)));
+      }
+
+      await fetch(window.location.href, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' },
+      });
+    } catch {
+      /* O cache-bust abaixo ainda forca o browser a pedir a versao mais nova. */
+    } finally {
+      const next = new URL(window.location.href);
+      next.searchParams.set('deployRefresh', Date.now().toString());
+      window.location.replace(next.toString());
+    }
+  }, [refreshingApp, showToast]);
+
   const prefix = topicPrefix(cfg, params);
 
   return (
     <div className="shell">
+      <div className="top-bar">
       {/* Cabeçalho */}
       <header className="flex items-center justify-between gap-3 px-4 pt-5 pb-1">
         <div className="flex items-center gap-3 min-w-0">
@@ -209,7 +249,7 @@ function App() {
       </header>
 
       {/* Resumo + ações em bloco */}
-      <section className="px-4 pt-3.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-2.5">
+      <section className="px-4 pt-3.5 pb-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-2.5">
         <div className="text-[0.92rem] font-medium text-[var(--soft)] whitespace-nowrap">
           <b className="text-[var(--text)] text-[1.15rem] font-extrabold">{knownCount ? onCount : '–'}</b>{' '}
           de {totalCards} ligados
@@ -245,6 +285,7 @@ function App() {
           </button>
         </div>
       </section>
+      </div>
 
       {/* Interruptores */}
       <main className="flex-1 px-4 pt-4 pb-4 grid grid-cols-2 gap-3 content-start" aria-label="Interruptores">
@@ -266,12 +307,22 @@ function App() {
       {/* Rodapé */}
       <footer className="px-4 pt-1 pb-5">
         <div className="footer-pill" style={{ borderRadius: 26 }}>
-          <RefreshCw
-            key={lastUpdate?.getTime() ?? 'idle'}
-            className="sync-icon w-[18px] h-[18px]"
-            strokeWidth={2.4}
-            aria-hidden="true"
-          />
+          <button
+            type="button"
+            onClick={handleRefreshApp}
+            disabled={refreshingApp}
+            data-refreshing={refreshingApp}
+            className="refresh-deploy-btn"
+            aria-label="Buscar ultimo deploy e atualizar a aplicacao"
+            title="Buscar ultimo deploy"
+          >
+            <RefreshCw
+              key={lastUpdate?.getTime() ?? 'idle'}
+              className="sync-icon w-[18px] h-[18px]"
+              strokeWidth={2.4}
+              aria-hidden="true"
+            />
+          </button>
           {lastUpdate ? (
             <div className="min-w-0 flex flex-col min-[500px]:flex-row min-[500px]:items-center min-[500px]:gap-x-2">
               <span className="whitespace-nowrap">
