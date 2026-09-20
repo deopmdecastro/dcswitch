@@ -9,7 +9,7 @@ import {
   saveConfig,
   topicPrefix,
 } from './config';
-import { MAX_CHANNELS } from './constants';
+import { MAX_CHANNELS, MIN_CHANNELS } from './constants';
 import { useMqtt } from './useMqtt';
 import { SwitchCard } from './components/SwitchCard';
 import { EditDialog } from './components/EditDialog';
@@ -64,6 +64,7 @@ function App() {
   const allOff = knownCount > 0 && onCount === 0;
   const stale = !brokerConnected || deviceOnline === false;
   const canAddChannel = totalCards < MAX_CHANNELS;
+  const canDeleteChannel = totalCards > MIN_CHANNELS;
 
   const canControl = brokerConnected && deviceOnline !== false && haveState;
 
@@ -161,6 +162,26 @@ function App() {
     persistCfg(next);
     setEditOpen(false);
     showToast('Interruptor atualizado.');
+  };
+
+  const handleDeleteChannel = () => {
+    if (!canDeleteChannel) {
+      showToast(`Tem de existir pelo menos ${MIN_CHANNELS} interruptores.`, 'error');
+      return;
+    }
+
+    const nextChannels = [...cfg.channels];
+    while (nextChannels.length < totalCards) nextChannels.push(null);
+    nextChannels.splice(editIndex, 1);
+
+    const nextCount = Math.max(MIN_CHANNELS, totalCards - 1);
+    persistCfg({
+      ...cfg,
+      channels: nextChannels.slice(0, nextCount),
+      channelCount: nextCount,
+    });
+    setEditOpen(false);
+    showToast(`Interruptor ${editIndex + 1} apagado.`);
   };
 
   const handleSaveSettings = (mqtt: string, topic: string) => {
@@ -348,7 +369,9 @@ function App() {
         open={editOpen}
         editIndex={editIndex}
         current={channelCfg(cfg, editIndex)}
+        canDelete={canDeleteChannel}
         onSave={handleSaveEdit}
+        onDelete={handleDeleteChannel}
         onCancel={() => setEditOpen(false)}
       />
 

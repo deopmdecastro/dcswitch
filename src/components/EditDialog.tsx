@@ -9,17 +9,31 @@ interface EditDialogProps {
   open: boolean;
   editIndex: number;
   current: ChannelConfig;
+  canDelete: boolean;
   onSave: (name: string, color: string, icon: string) => void;
+  onDelete: () => void;
   onCancel: () => void;
 }
 
-export function EditDialog({ open, editIndex, current, onSave, onCancel }: EditDialogProps) {
+export function EditDialog({
+  open,
+  editIndex,
+  current,
+  canDelete,
+  onSave,
+  onDelete,
+  onCancel,
+}: EditDialogProps) {
   const [draft, setDraft] = useState<ChannelConfig>(current);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // O rascunho só é reiniciado quando o diálogo abre (ou muda de interruptor).
   // Não depende de `current`, senão cada mensagem MQTT apagava o que estava a ser escrito.
   useEffect(() => {
-    if (open) setDraft(current);
+    if (open) {
+      setDraft(current);
+      setConfirmDelete(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editIndex]);
 
@@ -131,10 +145,26 @@ export function EditDialog({ open, editIndex, current, onSave, onCancel }: EditD
         </div>
 
         <div className="flex gap-2 justify-end">
+          {canDelete && (
+            <button
+              type="button"
+              onClick={() => {
+                if (!confirmDelete) {
+                  setConfirmDelete(true);
+                  return;
+                }
+                onDelete();
+              }}
+              onBlur={() => setConfirmDelete(false)}
+              className="btn btn-ghost btn-danger mr-auto"
+            >
+              {confirmDelete ? 'Confirmar apagar' : 'Apagar'}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setDraft({ name: '', color: defaults.color, icon: defaults.icon })}
-            className="btn btn-ghost mr-auto"
+            className={`btn btn-ghost ${canDelete ? '' : 'mr-auto'}`}
           >
             Repor
           </button>
