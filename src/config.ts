@@ -7,6 +7,7 @@ import {
   DEFAULT_MQTT,
   DEFAULT_TOPIC,
   HEX_RE,
+  MAX_CHANNELS,
   MIN_CHANNELS,
   PALETTE,
   STORE_KEY,
@@ -21,6 +22,10 @@ export function loadConfig(): AppConfig {
         channels: Array.isArray(p.channels) ? p.channels : [],
         mqtt: typeof p.mqtt === 'string' ? p.mqtt : '',
         topic: typeof p.topic === 'string' ? p.topic : '',
+        channelCount:
+          typeof p.channelCount === 'number'
+            ? Math.min(MAX_CHANNELS, Math.max(MIN_CHANNELS, Math.floor(p.channelCount)))
+            : undefined,
       };
     }
   } catch {
@@ -73,4 +78,11 @@ export function topicPrefix(cfg: AppConfig, params: URLSearchParams): string {
 
 export function initialStates(): (boolean | null)[] {
   return new Array(MIN_CHANNELS).fill(null);
+}
+
+export function configuredChannelCount(cfg: AppConfig, liveCount = 0): number {
+  return Math.min(
+    MAX_CHANNELS,
+    Math.max(MIN_CHANNELS, cfg.channelCount ?? 0, cfg.channels.length, liveCount),
+  );
 }

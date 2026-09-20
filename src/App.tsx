@@ -1,8 +1,15 @@
 import { useCallback, useMemo, useState } from 'react';
-import { RefreshCw, Settings, Zap } from 'lucide-react';
+import { Plus, RefreshCw, Settings, Zap } from 'lucide-react';
 import { AppConfig, ToastMsg } from './types';
-import { channelCfg, channelDefaults, loadConfig, saveConfig, topicPrefix } from './config';
-import { MIN_CHANNELS } from './constants';
+import {
+  channelCfg,
+  channelDefaults,
+  configuredChannelCount,
+  loadConfig,
+  saveConfig,
+  topicPrefix,
+} from './config';
+import { MAX_CHANNELS } from './constants';
 import { useMqtt } from './useMqtt';
 import { SwitchCard } from './components/SwitchCard';
 import { EditDialog } from './components/EditDialog';
@@ -51,10 +58,11 @@ function App() {
   const haveState = states.some((s) => s !== null);
   const knownCount = states.filter((s) => s !== null).length;
   const onCount = states.filter((s) => s === true).length;
-  const totalCards = Math.max(MIN_CHANNELS, states.length);
+  const totalCards = configuredChannelCount(cfg, states.length);
   const allOn = knownCount > 0 && onCount === knownCount;
   const allOff = knownCount > 0 && onCount === 0;
   const stale = !brokerConnected || deviceOnline === false;
+  const canAddChannel = totalCards < MAX_CHANNELS;
 
   const canControl = brokerConnected && deviceOnline !== false && haveState;
 
@@ -119,8 +127,31 @@ function App() {
     setSettingsOpen(true);
   };
 
+  const handleAddChannel = () => {
+    if (!canAddChannel) {
+      showToast(`Limite de ${MAX_CHANNELS} interruptores atingido.`, 'error');
+      return;
+    }
+
+    const newIndex = totalCards;
+    const next: AppConfig = {
+      ...cfg,
+      channels: [...cfg.channels],
+      channelCount: newIndex + 1,
+    };
+    while (next.channels.length <= newIndex) next.channels.push(null);
+    persistCfg(next);
+    setEditIndex(newIndex);
+    setEditOpen(true);
+    showToast(`Interruptor ${newIndex + 1} adicionado.`);
+  };
+
   const handleSaveEdit = (name: string, color: string, icon: string) => {
-    const next: AppConfig = { ...cfg, channels: [...cfg.channels] };
+    const next: AppConfig = {
+      ...cfg,
+      channels: [...cfg.channels],
+      channelCount: Math.max(cfg.channelCount ?? 0, editIndex + 1),
+    };
     while (next.channels.length <= editIndex) next.channels.push(null);
     // Se tudo coincide com os valores por omissão, guarda "sem personalização".
     const d = channelDefaults(editIndex);
@@ -201,6 +232,16 @@ function App() {
             className="chip"
           >
             Desligar todos
+          </button>
+          <button
+            type="button"
+            onClick={handleAddChannel}
+            disabled={!canAddChannel}
+            className="chip"
+            aria-label="Adicionar novo interruptor"
+          >
+            <Plus className="inline-block w-4 h-4 mr-1 align-[-2px]" strokeWidth={2.4} aria-hidden="true" />
+            Novo
           </button>
         </div>
       </section>

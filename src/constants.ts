@@ -2,6 +2,7 @@ export const DEFAULT_MQTT = 'wss://broker.hivemq.com:8884/mqtt';
 export const DEFAULT_TOPIC = 'dcswitch/475688253278273537';
 export const STORE_KEY = 'dcswitch.config.v2';
 export const MIN_CHANNELS = 4;
+export const MAX_CHANNELS = 16;
 export const RESPONSE_TIMEOUT_MS = 4000;
 
 // As 4 primeiras cores são as dos interruptores por omissão (verde, azul, âmbar, ciano).

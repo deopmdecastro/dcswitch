@@ -17,6 +17,7 @@ export interface AppConfig {
   channels: (ChannelConfig | null)[];
   mqtt: string;
   topic: string;
+  channelCount?: number;
 }
 
 export type ToastKind = 'info' | 'error';
