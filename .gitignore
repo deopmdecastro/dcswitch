@@ -4,3 +4,8 @@
 *.log
 *.tmp
 wokwi.vcd
+node_modules/
+dist/
+dist/
+.env
+.bolt/

@@ -1,0 +1,174 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0b1120;
+  --surface: #111a2e;
+  --surface-2: #17223a;
+  --border: #24304b;
+  --text: #e8edf7;
+  --muted: #8b98b3;
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --err: #f87171;
+  --radius: 22px;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background:
+    radial-gradient(900px 500px at 15% -10%, rgba(56, 189, 248, 0.1), transparent 60%),
+    radial-gradient(800px 500px at 100% 0%, rgba(167, 139, 250, 0.1), transparent 60%),
+    var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+}
+
+/* Card */
+.card {
+  --c: #34d399;
+}
+
+.card .card-main {
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--c) 35%, var(--border));
+  transition: background 0.3s, border-color 0.3s, box-shadow 0.3s, transform 0.12s, opacity 0.2s;
+}
+
+.card[data-on='true'] .card-main {
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--c) 22%, var(--surface)),
+    color-mix(in srgb, var(--c) 8%, var(--surface))
+  );
+  border-color: color-mix(in srgb, var(--c) 75%, transparent);
+  box-shadow:
+    0 12px 40px -14px color-mix(in srgb, var(--c) 75%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--c) 25%, transparent);
+}
+
+.card .icon {
+  background: color-mix(in srgb, var(--c) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
+  filter: grayscale(0.35);
+  transition: background 0.3s, filter 0.3s, box-shadow 0.3s;
+}
+
+.card[data-on='true'] .icon {
+  background: var(--c);
+  filter: none;
+  box-shadow: 0 0 22px color-mix(in srgb, var(--c) 70%, transparent);
+}
+
+.card .state-text {
+  color: var(--muted);
+}
+
+.card[data-on='true'] .state-text {
+  color: var(--c);
+}
+
+.card[data-unknown='true'] .state-text {
+  opacity: 0.6;
+}
+
+.card .switch {
+  background: #2a3652;
+}
+
+.card[data-on='true'] .switch {
+  background: var(--c);
+}
+
+.card .thumb {
+  transform: translateX(0);
+}
+
+.card[data-on='true'] .thumb {
+  transform: translateX(22px);
+}
+
+.card[data-pending='true'] .card-main {
+  opacity: 0.75;
+}
+
+.card[data-pending='true'] .thumb {
+  animation: wiggle 0.7s ease-in-out infinite;
+}
+
+.card[data-on='true'][data-pending='true'] .thumb {
+  animation: wiggle-on 0.7s ease-in-out infinite;
+}
+
+@keyframes wiggle {
+  50% {
+    transform: scale(0.82);
+  }
+}
+
+@keyframes wiggle-on {
+  0%,
+  100% {
+    transform: translateX(22px) scale(1);
+  }
+  50% {
+    transform: translateX(22px) scale(0.82);
+  }
+}
+
+.edit-btn {
+  background: rgba(11, 17, 32, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.edit-btn:hover {
+  background: rgba(11, 17, 32, 0.85);
+}
+
+/* Preview card in edit dialog */
+.preview-card {
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--c) 22%, var(--surface)),
+    color-mix(in srgb, var(--c) 8%, var(--surface))
+  );
+  border: 1px solid color-mix(in srgb, var(--c) 75%, transparent);
+  box-shadow:
+    0 12px 40px -14px color-mix(in srgb, var(--c) 75%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--c) 25%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
