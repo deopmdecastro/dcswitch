@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ChannelConfig } from '../types';
-import { ICONS, PALETTE } from '../constants';
+import { GPIO_POOL, ICONS, PALETTE } from '../constants';
 import { channelDefaults } from '../config';
 import { CardFace } from './CardFace';
 import { Dialog } from './Dialog';
@@ -10,7 +10,9 @@ interface EditDialogProps {
   editIndex: number;
   current: ChannelConfig;
   canDelete: boolean;
-  onSave: (name: string, color: string, icon: string) => void;
+  /** GPIO -> índice do interruptor que já o ocupa (sem contar com o que está a ser editado). */
+  takenGpios: Map<number, number>;
+  onSave: (name: string, color: string, icon: string, gpio: number) => void;
   onDelete: () => void;
   onCancel: () => void;
 }
@@ -20,6 +22,7 @@ export function EditDialog({
   editIndex,
   current,
   canDelete,
+  takenGpios,
   onSave,
   onDelete,
   onCancel,
@@ -44,13 +47,15 @@ export function EditDialog({
     icon: draft.icon,
   };
   const matchedPalette = PALETTE.some(([hex]) => hex === draft.color);
+  const gpioTakenBy = takenGpios.get(draft.gpio);
 
   return (
     <Dialog open={open} onClose={onCancel} labelledBy="edit-title">
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          onSave(draft.name.trim(), draft.color, draft.icon);
+          if (gpioTakenBy !== undefined) return;
+          onSave(draft.name.trim(), draft.color, draft.icon, draft.gpio);
         }}
         className="p-5 flex flex-col gap-5"
       >
@@ -86,6 +91,41 @@ export function EditDialog({
             autoComplete="off"
             className="field-input"
           />
+        </div>
+
+        <div>
+          <label htmlFor="edit-gpio" className="field-label">
+            GPIO
+          </label>
+          <select
+            id="edit-gpio"
+            value={draft.gpio}
+            onChange={(e) => setDraft((d) => ({ ...d, gpio: Number(e.target.value) }))}
+            aria-invalid={gpioTakenBy !== undefined}
+            aria-describedby="edit-gpio-hint"
+            className="field-input"
+          >
+            {GPIO_POOL.map((g) => {
+              const taken = takenGpios.get(g);
+              return (
+                <option key={g} value={g}>
+                  {`GPIO ${g}`}
+                  {taken !== undefined ? ` · em uso pelo interruptor ${taken + 1}` : ''}
+                </option>
+              );
+            })}
+          </select>
+          <p
+            id="edit-gpio-hint"
+            role={gpioTakenBy !== undefined ? 'alert' : undefined}
+            className={`text-[0.78rem] mt-1.5 ${
+              gpioTakenBy !== undefined ? 'text-[var(--err)]' : 'text-[var(--muted)]'
+            }`}
+          >
+            {gpioTakenBy !== undefined
+              ? `O GPIO ${draft.gpio} já está atribuído ao interruptor ${gpioTakenBy + 1}.`
+              : 'Pino do ESP32 que comanda este relé. Tem de coincidir com a ligação física.'}
+          </p>
         </div>
 
         <div>
@@ -163,7 +203,9 @@ export function EditDialog({
           )}
           <button
             type="button"
-            onClick={() => setDraft({ name: '', color: defaults.color, icon: defaults.icon })}
+            onClick={() =>
+              setDraft({ name: '', color: defaults.color, icon: defaults.icon, gpio: draft.gpio })
+            }
             className={`btn btn-ghost ${canDelete ? '' : 'mr-auto'}`}
           >
             Repor
@@ -171,7 +213,7 @@ export function EditDialog({
           <button type="button" onClick={onCancel} className="btn">
             Cancelar
           </button>
-          <button type="submit" className="btn btn-primary">
+          <button type="submit" disabled={gpioTakenBy !== undefined} className="btn btn-primary">
             Guardar
           </button>
         </div>

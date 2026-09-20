@@ -4,6 +4,8 @@ import {
 } from './types';
 import {
   DEFAULT_ICONS,
+  GPIO_POOL,
+  GPIO_SET,
   DEFAULT_MQTT,
   DEFAULT_TOPIC,
   HEX_RE,
@@ -48,7 +50,35 @@ export function channelDefaults(i: number): ChannelConfig {
     name: `Relé ${i + 1}`,
     color: PALETTE[i % PALETTE.length][0],
     icon: DEFAULT_ICONS[i % DEFAULT_ICONS.length],
+    gpio: GPIO_POOL[i % GPIO_POOL.length],
   };
+}
+
+/** Aceita apenas GPIOs da lista de pinos utilizáveis. */
+export function isValidGpio(g: unknown): g is number {
+  return typeof g === 'number' && Number.isInteger(g) && GPIO_SET.has(g);
+}
+
+/**
+ * GPIOs já ocupados pelos interruptores existentes.
+ * `skip` permite ignorar o próprio canal quando se está a editá-lo.
+ */
+export function usedGpios(cfg: AppConfig, count: number, skip = -1): Map<number, number> {
+  const used = new Map<number, number>();
+  for (let i = 0; i < count; i++) {
+    if (i === skip) continue;
+    used.set(channelCfg(cfg, i).gpio, i);
+  }
+  return used;
+}
+
+/**
+ * Primeiro GPIO da lista que ainda não esteja atribuído a nenhum interruptor.
+ * Devolve null se já estiverem todos ocupados.
+ */
+export function nextFreeGpio(cfg: AppConfig, count: number, skip = -1): number | null {
+  const used = usedGpios(cfg, count, skip);
+  return GPIO_POOL.find((g) => !used.has(g)) ?? null;
 }
 
 export function channelCfg(cfg: AppConfig, i: number): ChannelConfig {
@@ -65,6 +95,7 @@ export function channelCfg(cfg: AppConfig, i: number): ChannelConfig {
         ? c.color.toLowerCase()
         : d.color,
     icon: typeof c.icon === 'string' && c.icon ? c.icon : d.icon,
+    gpio: isValidGpio(c.gpio) ? c.gpio : d.gpio,
   };
 }
 

@@ -24,4 +24,18 @@ export const ICONS = [
 
 export const DEFAULT_ICONS = ['💡', '🔌', '🌀', '❄️'];
 
+// GPIOs utilizáveis como saída no ESP32-S2 (o alvo do firmware).
+// Ficam de fora: 0 (strapping/boot), 19 e 20 (USB), 26 a 32 (flash/PSRAM),
+// 43 e 44 (UART da consola) e 46 (só de entrada).
+// A ordem é a da atribuição automática: os quatro primeiros são os que o
+// firmware já usa por omissão em RELAY_PINS, o resto entra por ordem crescente.
+export const GPIO_POOL: number[] = [
+  5, 6, 7, 8,
+  1, 2, 3, 4,
+  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 21,
+  33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 45,
+];
+
+export const GPIO_SET = new Set(GPIO_POOL);
+
 export const HEX_RE = /^#[0-9a-f]{6}$/i;
