@@ -4,10 +4,13 @@ import {
 } from './types';
 import {
   DEFAULT_ICONS,
+  DEFAULT_GPIO_START,
   DEFAULT_MQTT,
   DEFAULT_TOPIC,
   HEX_RE,
   MAX_CHANNELS,
+  MAX_GPIO,
+  MIN_GPIO,
   MIN_CHANNELS,
   PALETTE,
   STORE_KEY,
@@ -48,6 +51,7 @@ export function channelDefaults(i: number): ChannelConfig {
     name: `Relé ${i + 1}`,
     color: PALETTE[i % PALETTE.length][0],
     icon: DEFAULT_ICONS[i % DEFAULT_ICONS.length],
+    gpio: DEFAULT_GPIO_START + i,
   };
 }
 
@@ -65,6 +69,10 @@ export function channelCfg(cfg: AppConfig, i: number): ChannelConfig {
         ? c.color.toLowerCase()
         : d.color,
     icon: typeof c.icon === 'string' && c.icon ? c.icon : d.icon,
+    gpio:
+      typeof c.gpio === 'number' && Number.isInteger(c.gpio) && c.gpio >= MIN_GPIO && c.gpio <= MAX_GPIO
+        ? c.gpio
+        : d.gpio,
   };
 }
 
@@ -85,4 +93,18 @@ export function configuredChannelCount(cfg: AppConfig, liveCount = 0): number {
     MAX_CHANNELS,
     Math.max(MIN_CHANNELS, cfg.channelCount ?? 0, cfg.channels.length, liveCount),
   );
+}
+
+export function nextFreeGpio(cfg: AppConfig, channelCount: number): number {
+  const used = new Set<number>();
+  for (let i = 0; i < channelCount; i++) {
+    const gpio = channelCfg(cfg, i).gpio;
+    if (Number.isInteger(gpio)) used.add(gpio);
+  }
+
+  for (let gpio = DEFAULT_GPIO_START; gpio <= MAX_GPIO; gpio++) {
+    if (!used.has(gpio)) return gpio;
+  }
+
+  return Math.min(MAX_GPIO, DEFAULT_GPIO_START + channelCount);
 }

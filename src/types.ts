@@ -11,6 +11,7 @@ export interface ChannelConfig {
   name: string;
   color: string;
   icon: string;
+  gpio: number;
 }
 
 export interface AppConfig {

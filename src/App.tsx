@@ -6,6 +6,7 @@ import {
   channelDefaults,
   configuredChannelCount,
   loadConfig,
+  nextFreeGpio,
   saveConfig,
   topicPrefix,
 } from './config';
@@ -142,13 +143,17 @@ function App() {
       channelCount: newIndex + 1,
     };
     while (next.channels.length <= newIndex) next.channels.push(null);
+    next.channels[newIndex] = {
+      ...channelDefaults(newIndex),
+      gpio: nextFreeGpio(cfg, totalCards),
+    };
     persistCfg(next);
     setEditIndex(newIndex);
     setEditOpen(true);
     showToast(`Interruptor ${newIndex + 1} adicionado.`);
   };
 
-  const handleSaveEdit = (name: string, color: string, icon: string) => {
+  const handleSaveEdit = (name: string, color: string, icon: string, gpio: number) => {
     const next: AppConfig = {
       ...cfg,
       channels: [...cfg.channels],
@@ -157,8 +162,10 @@ function App() {
     while (next.channels.length <= editIndex) next.channels.push(null);
     // Se tudo coincide com os valores por omissão, guarda "sem personalização".
     const d = channelDefaults(editIndex);
-    const isDefault = (!name || name === d.name) && color === d.color && icon === d.icon;
-    next.channels[editIndex] = isDefault ? null : { name, color, icon };
+    const normalizedGpio = Math.floor(gpio);
+    const isDefault =
+      (!name || name === d.name) && color === d.color && icon === d.icon && normalizedGpio === d.gpio;
+    next.channels[editIndex] = isDefault ? null : { name, color, icon, gpio: normalizedGpio };
     persistCfg(next);
     setEditOpen(false);
     showToast('Interruptor atualizado.');

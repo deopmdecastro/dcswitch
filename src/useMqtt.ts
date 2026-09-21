@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import mqtt, { type MqttClient } from 'mqtt';
 import { AppConfig, BrokerState, RelayState } from './types';
-import { topicPrefix, mqttUrl, initialStates } from './config';
+import { channelCfg, topicPrefix, mqttUrl, initialStates } from './config';
 import { MIN_CHANNELS, RESPONSE_TIMEOUT_MS } from './constants';
 
 interface UseMqttOptions {
@@ -56,7 +56,7 @@ export function useMqtt(
       const client = clientRef.current;
       if (!client || !client.connected) return;
       const prefix = topicPrefix(cfg, params);
-      client.publish(`${prefix}/cmd`, JSON.stringify({ action: 'toggle', channel: i }));
+      client.publish(`${prefix}/cmd`, JSON.stringify({ action: 'toggle', channel: i, gpio: channelCfg(cfg, i).gpio }));
       setPending((prev) => {
         const next = new Set(prev);
         next.add(i);

@@ -4,6 +4,9 @@ export const STORE_KEY = 'dcswitch.config.v2';
 export const MIN_CHANNELS = 4;
 export const MAX_CHANNELS = 16;
 export const RESPONSE_TIMEOUT_MS = 4000;
+export const DEFAULT_GPIO_START = 5;
+export const MIN_GPIO = 0;
+export const MAX_GPIO = 48;
 
 // As 4 primeiras cores são as dos interruptores por omissão (verde, azul, âmbar, ciano).
 export const PALETTE: [string, string][] = [

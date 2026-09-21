@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ChannelConfig } from '../types';
-import { ICONS, PALETTE } from '../constants';
+import { ICONS, MAX_GPIO, MIN_GPIO, PALETTE } from '../constants';
 import { channelDefaults } from '../config';
 import { CardFace } from './CardFace';
 import { Dialog } from './Dialog';
@@ -10,7 +10,7 @@ interface EditDialogProps {
   editIndex: number;
   current: ChannelConfig;
   canDelete: boolean;
-  onSave: (name: string, color: string, icon: string) => void;
+  onSave: (name: string, color: string, icon: string, gpio: number) => void;
   onDelete: () => void;
   onCancel: () => void;
 }
@@ -50,7 +50,8 @@ export function EditDialog({
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          onSave(draft.name.trim(), draft.color, draft.icon);
+          const gpio = Math.min(MAX_GPIO, Math.max(MIN_GPIO, Math.floor(draft.gpio)));
+          onSave(draft.name.trim(), draft.color, draft.icon, gpio);
         }}
         className="p-5 flex flex-col gap-5"
       >
@@ -86,6 +87,31 @@ export function EditDialog({
             autoComplete="off"
             className="field-input"
           />
+        </div>
+
+        <div>
+          <label htmlFor="edit-gpio" className="field-label">
+            GPIO
+          </label>
+          <input
+            type="number"
+            id="edit-gpio"
+            min={MIN_GPIO}
+            max={MAX_GPIO}
+            step={1}
+            value={draft.gpio}
+            onChange={(e) => {
+              const value = Number(e.target.value);
+              setDraft((d) => ({
+                ...d,
+                gpio: Number.isFinite(value) ? value : d.gpio,
+              }));
+            }}
+            className="field-input"
+          />
+          <p className="text-[0.78rem] text-[var(--muted)] mt-1.5">
+            Use o mesmo GPIO configurado no firmware do ESP32 para este rele.
+          </p>
         </div>
 
         <div>
@@ -163,7 +189,7 @@ export function EditDialog({
           )}
           <button
             type="button"
-            onClick={() => setDraft({ name: '', color: defaults.color, icon: defaults.icon })}
+            onClick={() => setDraft({ name: '', color: defaults.color, icon: defaults.icon, gpio: defaults.gpio })}
             className={`btn btn-ghost ${canDelete ? '' : 'mr-auto'}`}
           >
             Repor
