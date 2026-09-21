@@ -19,6 +19,25 @@ npm run typecheck && npm run lint
 - **Interface tipo aplicação (PWA)**: responsiva (moldura de "aparelho" em ecrãs grandes), com ícone e `manifest.json` em `public/`, pode ser instalada no ecrã inicial do telemóvel. Tipo de letra incluído no build (sem CDN).
 - Acessibilidade: cartões com `role="switch"`, diálogos com foco preso e Esc para fechar, foco visível e respeito por `prefers-reduced-motion`.
 
+## Simulação local (VS Code + Wokwi)
+
+Este projeto tem **duas** formas de simular o firmware, e é fácil confundi-las:
+
+- **Online, em wokwi.com** (`dcswitch/sketch.ino` + `dcswitch/diagram.json`): a compilação é feita automaticamente na nuvem do Wokwi, não é preciso mais nada.
+- **Local, com a extensão Wokwi no VS Code** (`wokwi.toml` + `platformio.ini` na raiz): o `wokwi.toml` aponta para o **binário já compilado**:
+
+  ```toml
+  firmware = '.pio/build/esp32-s2-saola-1/firmware.bin'
+  elf = '.pio/build/esp32-s2-saola-1/firmware.elf'
+  ```
+
+  Esta pasta `.pio/` não existe no repositório (está no `.gitignore` de propósito, por serem ficheiros gerados). **Se o simulador não arrancar** (ou a extensão disser que não encontra o firmware), a causa é quase sempre esta: falta compilar antes de simular. Passos:
+
+  1. Instala a extensão *PlatformIO IDE* no VS Code (e a extensão *Wokwi*, com licença ativa).
+  2. Compila o firmware: `pio run` (ou o botão de "build" do PlatformIO). Isto cria `.pio/build/esp32-s2-saola-1/firmware.bin` e `.elf`.
+  3. Só depois, `F1` → **Wokwi: Start Simulator**.
+  4. Sempre que alterares `dcswitch/sketch.ino`, repete o `pio run` antes de simular outra vez — o Wokwi não recompila sozinho.
+
 ## Firmware (`dcswitch/sketch.ino`)
 
 Além de `cmd` e `state`, o ESP32 publica agora o tópico `.../status` (`online`/`offline`, com Last Will), que o painel usa para mostrar se o dispositivo está ligado. O painel continua compatível com o firmware anterior.

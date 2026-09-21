@@ -11,6 +11,7 @@ export interface ChannelConfig {
   name: string;
   color: string;
   icon: string;
+  /** GPIO do ESP32 que comanda este relé. */
   gpio: number;
 }
 

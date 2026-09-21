@@ -9,6 +9,7 @@ import {
   nextFreeGpio,
   saveConfig,
   topicPrefix,
+  usedGpios,
 } from './config';
 import { MAX_CHANNELS, MIN_CHANNELS } from './constants';
 import { useMqtt } from './useMqtt';
@@ -137,20 +138,25 @@ function App() {
     }
 
     const newIndex = totalCards;
+    const gpio = nextFreeGpio(cfg, totalCards);
+    if (gpio === null) {
+      showToast('Já não há GPIOs livres no ESP32.', 'error');
+      return;
+    }
+
+    const base = channelDefaults(newIndex);
     const next: AppConfig = {
       ...cfg,
       channels: [...cfg.channels],
       channelCount: newIndex + 1,
     };
     while (next.channels.length <= newIndex) next.channels.push(null);
-    next.channels[newIndex] = {
-      ...channelDefaults(newIndex),
-      gpio: nextFreeGpio(cfg, totalCards),
-    };
+    // O novo interruptor fica logo com o próximo GPIO livre atribuído.
+    next.channels[newIndex] = { ...base, gpio };
     persistCfg(next);
     setEditIndex(newIndex);
     setEditOpen(true);
-    showToast(`Interruptor ${newIndex + 1} adicionado.`);
+    showToast(`Interruptor ${newIndex + 1} adicionado no GPIO ${gpio}.`);
   };
 
   const handleSaveEdit = (name: string, color: string, icon: string, gpio: number) => {
@@ -162,10 +168,9 @@ function App() {
     while (next.channels.length <= editIndex) next.channels.push(null);
     // Se tudo coincide com os valores por omissão, guarda "sem personalização".
     const d = channelDefaults(editIndex);
-    const normalizedGpio = Math.floor(gpio);
     const isDefault =
-      (!name || name === d.name) && color === d.color && icon === d.icon && normalizedGpio === d.gpio;
-    next.channels[editIndex] = isDefault ? null : { name, color, icon, gpio: normalizedGpio };
+      (!name || name === d.name) && color === d.color && icon === d.icon && gpio === d.gpio;
+    next.channels[editIndex] = isDefault ? null : { name: name || d.name, color, icon, gpio };
     persistCfg(next);
     setEditOpen(false);
     showToast('Interruptor atualizado.');
@@ -377,6 +382,7 @@ function App() {
         editIndex={editIndex}
         current={channelCfg(cfg, editIndex)}
         canDelete={canDeleteChannel}
+        takenGpios={usedGpios(cfg, totalCards, editIndex)}
         onSave={handleSaveEdit}
         onDelete={handleDeleteChannel}
         onCancel={() => setEditOpen(false)}
