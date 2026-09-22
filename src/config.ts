@@ -6,6 +6,7 @@ import {
   DEFAULT_ICONS,
   GPIO_POOL,
   GPIO_SET,
+  LOCAL_MQTT,
   DEFAULT_MQTT,
   DEFAULT_TOPIC,
   HEX_RE,
@@ -100,7 +101,14 @@ export function channelCfg(cfg: AppConfig, i: number): ChannelConfig {
 }
 
 export function mqttUrl(cfg: AppConfig, params: URLSearchParams): string {
-  return params.get('mqtt') || cfg.mqtt || DEFAULT_MQTT;
+  const fromUrl = params.get('mqtt');
+  if (fromUrl) return fromUrl;
+
+  const host = window.location.hostname;
+  const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+  if (isLocalhost) return LOCAL_MQTT;
+
+  return cfg.mqtt || DEFAULT_MQTT;
 }
 
 export function topicPrefix(cfg: AppConfig, params: URLSearchParams): string {

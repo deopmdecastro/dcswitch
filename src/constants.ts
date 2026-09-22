@@ -1,4 +1,5 @@
 export const DEFAULT_MQTT = 'wss://broker.hivemq.com:8884/mqtt';
+export const LOCAL_MQTT = 'ws://127.0.0.1:9001/mqtt';
 export const DEFAULT_TOPIC = 'dcswitch/475688253278273537';
 export const STORE_KEY = 'dcswitch.config.v2';
 export const MIN_CHANNELS = 4;

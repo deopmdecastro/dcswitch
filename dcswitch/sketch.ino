@@ -13,7 +13,7 @@ unsigned long lastDebounceTime[4] = {0, 0, 0, 0};
 const unsigned long debounceDelay = 50; // 50ms for debounce
 bool buttonHandled[4] = {false, false, false, false};
 
-const char *MQTT_BROKER = "broker.hivemq.com";
+const char *MQTT_BROKER = "host.wokwi.internal";
 const int MQTT_PORT = 1883;
 const char *COMMAND_TOPIC = "dcswitch/475688253278273537/cmd";
 const char *STATE_TOPIC = "dcswitch/475688253278273537/state";

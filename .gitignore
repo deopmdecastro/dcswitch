@@ -1,6 +1,8 @@
 .pio/
 .platformio/
 .vscode/
+.vscode-agent-browser-data/
+.vscode-wokwi-run/
 *.log
 *.tmp
 wokwi.vcd
