@@ -1,4 +1,5 @@
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 
 // Pins Definition
@@ -13,13 +14,13 @@ unsigned long lastDebounceTime[4] = {0, 0, 0, 0};
 const unsigned long debounceDelay = 50; // 50ms for debounce
 bool buttonHandled[4] = {false, false, false, false};
 
-const char *MQTT_BROKER = "host.wokwi.internal";
-const int MQTT_PORT = 1883;
+const char *MQTT_BROKER = "broker.hivemq.com";
+const int MQTT_PORT = 8883;
 const char *COMMAND_TOPIC = "dcswitch/475688253278273537/cmd";
 const char *STATE_TOPIC = "dcswitch/475688253278273537/state";
 const char *STATUS_TOPIC = "dcswitch/475688253278273537/status"; // "online" / "offline" (LWT)
 
-WiFiClient wifiClient;
+WiFiClientSecure wifiClient;
 PubSubClient mqtt(wifiClient);
 
 void publishStates() {
@@ -144,6 +145,7 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   mqtt.setServer(MQTT_BROKER, MQTT_PORT);
+  wifiClient.setInsecure(); // Skip certificate verification for HiveMQ
   mqtt.setCallback(handleMqttMessage);
   connectMqtt();
 
